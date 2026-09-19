@@ -11,6 +11,7 @@ export interface CardData {
   ownerName: string
   designation: string
   phone: string
+  phoneSecondary: string
   whatsapp: string
   email: string
   website: string
@@ -37,6 +38,7 @@ export const DEFAULT_CARD: CardData = {
   ownerName: 'Shalimar Fashions',
   designation: 'Premium Fashion House',
   phone: '+91 70256 48555',
+  phoneSecondary: '+91 70256 18555',
   whatsapp: '917025648555',
   email: 'hello@shalimarfashions.com',
   website: 'https://shalimarfashions.com',
@@ -60,7 +62,7 @@ export const DEFAULT_CARD: CardData = {
   experience: [],
 }
 
-const STORAGE_KEY = 'sf-digital-card-data-v6'
+const STORAGE_KEY = 'sf-digital-card-data-v7'
 const AUTH_KEY = 'sf-digital-card-auth'
 const ADMIN_PASSWORD = 'shalimar2024'
 
@@ -133,9 +135,17 @@ export function instagramHandle(url: string): string {
 
 export function buildVCard(data: CardData): string {
   const phone = digitsOnly(data.phone)
+  const phone2 = digitsOnly(data.phoneSecondary || '')
   const wa = digitsOnly(data.whatsapp)
   const name = (data.ownerName || data.brandName).replace(/,/g, '\\,')
   const org = data.brandName.replace(/,/g, '\\,')
+  const phones = new Set<string>()
+  if (phone) phones.add(phone)
+  if (phone2) phones.add(phone2)
+  if (wa) phones.add(wa)
+  const telLines = [...phones].map((n, i) =>
+    i === 0 ? `TEL;TYPE=CELL,VOICE:${n}` : `TEL;TYPE=CELL,VOICE:${n}`,
+  )
   const lines = [
     'BEGIN:VCARD',
     'VERSION:3.0',
@@ -143,8 +153,7 @@ export function buildVCard(data: CardData): string {
     `FN:${name}`,
     `ORG:${org}`,
     `TITLE:${data.designation}`,
-    phone ? `TEL;TYPE=CELL,VOICE:${phone}` : '',
-    wa && wa !== phone ? `TEL;TYPE=CELL:${wa}` : '',
+    ...telLines,
     data.email ? `EMAIL;TYPE=INTERNET:${data.email}` : '',
     data.website ? `URL:${data.website}` : '',
     data.address ? `ADR;TYPE=WORK:;;${data.address.replace(/,/g, '\\,')};;;;` : '',

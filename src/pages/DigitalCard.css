@@ -267,6 +267,47 @@
   color: rgba(255, 255, 255, 0.78);
 }
 
+.folio-spot--call-duo {
+  align-items: flex-start;
+  min-height: 4.1rem;
+}
+
+.folio-spot__stack {
+  display: grid;
+  gap: 0.12rem;
+  min-width: 0;
+  width: 100%;
+}
+
+.folio-spot__tel {
+  font-size: clamp(0.58rem, 1.9vw, 0.68rem);
+  color: rgba(255, 255, 255, 0.88);
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-decoration: none;
+  border-radius: 4px;
+  transition: color 0.2s ease, background 0.2s ease;
+}
+
+.folio-spot__tel:hover,
+.folio-spot__tel:focus-visible {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.12);
+  outline: none;
+}
+
+.folio-spot__tel--alt {
+  color: rgba(255, 255, 255, 0.72);
+  font-weight: 500;
+}
+
+.folio-spot--share:disabled {
+  opacity: 0.72;
+  pointer-events: none;
+}
+
 .folio-spot--wa {
   background: #eaf5ef;
   border-color: transparent;
@@ -589,6 +630,15 @@
     min-height: 4.35rem;
     padding: 0.55rem 0.25rem;
   }
+
+  .folio-spot--call-duo {
+    align-items: center;
+    min-height: 5rem;
+  }
+
+  .folio-spot__stack {
+    justify-items: center;
+  }
 }
 
 @media (min-width: 560px) {
@@ -786,6 +836,19 @@
     min-height: 4.6rem;
     padding: 1rem 1.15rem;
     border-radius: 16px;
+  }
+
+  .folio-spot--call-duo {
+    align-items: flex-start;
+    min-height: 5.1rem;
+  }
+
+  .folio-spot__stack {
+    justify-items: start;
+  }
+
+  .folio-spot__tel {
+    font-size: 0.78rem;
   }
 
   .folio-spot svg {

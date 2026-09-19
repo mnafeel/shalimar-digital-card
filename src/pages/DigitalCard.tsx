@@ -16,6 +16,7 @@ import {
   whatsappHref,
   type CardData,
 } from '../data/cardStore'
+import { shareDigitalCard } from '../utils/shareCardImage'
 import './DigitalCard.css'
 
 const ease = [0.22, 1, 0.36, 1] as const
@@ -35,6 +36,7 @@ export default function DigitalCard() {
   const [introDone, setIntroDone] = useState(false)
   const [shareNote, setShareNote] = useState('')
   const [saveNote, setSaveNote] = useState('')
+  const [sharing, setSharing] = useState(false)
   const reduce = useReducedMotion()
   const introLocked = useRef(false)
   const logoSlotRef = useRef<HTMLDivElement>(null)
@@ -62,24 +64,31 @@ export default function DigitalCard() {
 
   const handle = instagramHandle(data.instagram)
   const logoSrc = '/brand/logo-hero-white.png'
-  const cardUrl = typeof window !== 'undefined' ? window.location.href.split('?')[0] : ''
+  const cardUrl =
+    typeof window !== 'undefined'
+      ? `${window.location.origin}${window.location.pathname}`.replace(/\/$/, '') ||
+        window.location.href.split('?')[0]
+      : 'https://digitalcard.shalimarfashions.com'
 
   const shareCard = async () => {
-    const payload = {
-      title: data.brandName,
-      text: `${data.brandName} — Digital Visiting Card`,
-      url: cardUrl || window.location.href,
-    }
+    if (sharing) return
+    setSharing(true)
+    setShareNote('Preparing…')
     try {
-      if (navigator.share) {
-        await navigator.share(payload)
+      const result = await shareDigitalCard(data, cardUrl || window.location.href)
+      if (result === 'cancelled') {
+        setShareNote('')
         return
       }
-      await navigator.clipboard.writeText(payload.url)
-      setShareNote('Link copied')
-      window.setTimeout(() => setShareNote(''), 1800)
+      if (result === 'shared') setShareNote('Shared')
+      else if (result === 'copied') setShareNote('Link copied')
+      else setShareNote('Card saved')
+      window.setTimeout(() => setShareNote(''), 2000)
     } catch {
-      /* cancelled */
+      setShareNote('Try again')
+      window.setTimeout(() => setShareNote(''), 1800)
+    } finally {
+      setSharing(false)
     }
   }
 
@@ -148,13 +157,20 @@ export default function DigitalCard() {
             aria-label="Primary contact"
             {...fadeUp(0.16, reduce || !ready)}
           >
-            <a className="folio-spot folio-spot--call" href={telHref(data.phone)}>
+            <div className="folio-spot folio-spot--call folio-spot--call-duo">
               <IconCall />
-              <span>
+              <div className="folio-spot__stack">
                 <strong>Call</strong>
-                <small>{data.phone}</small>
-              </span>
-            </a>
+                <a className="folio-spot__tel" href={telHref(data.phone)}>
+                  {data.phone}
+                </a>
+                {data.phoneSecondary ? (
+                  <a className="folio-spot__tel folio-spot__tel--alt" href={telHref(data.phoneSecondary)}>
+                    {data.phoneSecondary}
+                  </a>
+                ) : null}
+              </div>
+            </div>
             <a
               className="folio-spot folio-spot--wa"
               href={whatsappHref(data.whatsapp)}
@@ -171,14 +187,19 @@ export default function DigitalCard() {
               <IconSave />
               <span>
                 <strong>Save</strong>
-                <small>{saveNote || 'Contact'}</small>
+                <small>{saveNote || 'Both numbers'}</small>
               </span>
             </button>
-            <button type="button" className="folio-spot folio-spot--share" onClick={shareCard}>
+            <button
+              type="button"
+              className="folio-spot folio-spot--share"
+              onClick={shareCard}
+              disabled={sharing}
+            >
               <IconShare />
               <span>
                 <strong>Share</strong>
-                <small>{shareNote || 'Card link'}</small>
+                <small>{shareNote || 'Digital card'}</small>
               </span>
             </button>
           </motion.section>
