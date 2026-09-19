@@ -127,9 +127,8 @@ export default function DigitalCard() {
         setSaveNote('')
         return
       }
-      if (result === 'opened') setSaveNote('Add contact')
-      else if (result === 'shared') setSaveNote('Shared')
-      else setSaveNote('Downloaded')
+      if (result === 'opened' || result === 'shared') setSaveNote('Contacts')
+      else setSaveNote('Saved')
     } catch {
       setSaveNote('Try again')
     }
@@ -213,9 +212,9 @@ export default function DigitalCard() {
               </span>
             </a>
             <button type="button" className="folio-spot folio-spot--save" onClick={saveContact}>
-              <IconSave />
+              <IconContact />
               <span>
-                <strong>Save to Contact</strong>
+                <strong>Save to Contacts</strong>
                 <small>{saveNote || 'Phone book'}</small>
               </span>
             </button>
@@ -723,17 +722,26 @@ function Logo3D({
   )
 }
 
-function IconSave() {
+function IconContact() {
   return (
     <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <circle cx="12" cy="8" r="3.1" stroke="currentColor" strokeWidth="1.7" />
       <path
-        d="M12 3.5v11M12 14.5l-3.5-3.5M12 14.5l3.5-3.5"
+        d="M5.5 18.2c1.35-2.4 3.25-3.6 6.5-3.6s5.15 1.2 6.5 3.6"
         stroke="currentColor"
         strokeWidth="1.7"
         strokeLinecap="round"
-        strokeLinejoin="round"
       />
-      <path d="M5 18.5h14" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+      <rect
+        x="3.4"
+        y="3.4"
+        width="17.2"
+        height="17.2"
+        rx="4.2"
+        stroke="currentColor"
+        strokeWidth="1.55"
+        opacity="0.55"
+      />
     </svg>
   )
 }

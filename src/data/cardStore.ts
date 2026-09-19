@@ -239,39 +239,17 @@ function triggerVcfDownload(blob: Blob, filename: string): void {
   window.setTimeout(() => URL.revokeObjectURL(url), 4000)
 }
 
-/** Opens a vCard so iPhone/Android can Add to Contacts immediately. */
-function openVcfForContacts(vcard: string, filename: string): void {
-  const apple = isAppleTouchDevice()
-
-  if (apple) {
-    // data: URI is the most reliable way for Safari to show “Create New Contact”
-    const dataUri = `data:text/vcard;charset=utf-8,${encodeURIComponent(vcard)}`
-    const a = document.createElement('a')
-    a.href = dataUri
-    a.rel = 'noopener'
-    a.style.display = 'none'
-    document.body.appendChild(a)
-    a.click()
-    a.remove()
-    return
-  }
-
-  const blob = new Blob([vcard], { type: 'text/vcard;charset=utf-8' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = filename
-  a.rel = 'noopener'
-  a.style.display = 'none'
-  document.body.appendChild(a)
-  a.click()
-  a.remove()
-  window.setTimeout(() => URL.revokeObjectURL(url), 60_000)
+/** Open the system “Add to Contacts” sheet (iPhone-style), without forcing a file download. */
+function openNativeContactSheet(vcard: string): void {
+  // text/x-vcard is what iOS expects for the Create New Contact preview
+  const dataUri = `data:text/x-vcard;charset=utf-8,${encodeURIComponent(vcard)}`
+  window.location.assign(dataUri)
 }
 
 /**
- * Save to Contacts on iPhone & Android.
- * Opens/downloads a .vcf so the phone’s Contacts app can import immediately.
+ * Save to Contacts — same idea as receiving a shared contact.
+ * Mobile: share-as-contact or open the phone’s Add Contact screen (not a download).
+ * Desktop: save dialog / Downloads folder.
  */
 export async function downloadVCard(
   data: CardData,
@@ -281,26 +259,35 @@ export async function downloadVCard(
     .replace(/\s+/g, '-')
     .toLowerCase()}.vcf`
   const blob = new Blob([vcard], { type: 'text/vcard;charset=utf-8' })
-  const file = new File([vcard], filename, { type: 'text/vcard' })
   const apple = isAppleTouchDevice()
   const android = isAndroidDevice()
+  const mobile = apple || android
 
-  // Mobile: open/download .vcf → system “Add to Contacts”
-  if (apple || android) {
-    openVcfForContacts(vcard, filename)
+  const contactFiles = [
+    new File([vcard], filename, { type: 'text/vcard' }),
+    new File([vcard], filename, { type: 'text/x-vcard' }),
+  ]
+
+  if (mobile) {
+    // 1) Share as a contact file (same path as someone sharing a contact with you)
+    for (const file of contactFiles) {
+      try {
+        if (typeof navigator !== 'undefined' && navigator.canShare?.({ files: [file] })) {
+          // files only — keeps the sheet contact-focused (no plain-text share)
+          await navigator.share({ files: [file] })
+          return 'shared'
+        }
+      } catch (err) {
+        if (err instanceof DOMException && err.name === 'AbortError') return 'cancelled'
+      }
+    }
+
+    // 2) iPhone/Android: open native Add Contact UI (not a downloaded file)
+    openNativeContactSheet(vcard)
     return 'opened'
   }
 
-  // Desktop: share file if available, else download
-  try {
-    if (typeof navigator !== 'undefined' && navigator.canShare?.({ files: [file] })) {
-      await navigator.share({ files: [file], title: data.brandName })
-      return 'shared'
-    }
-  } catch (err) {
-    if (err instanceof DOMException && err.name === 'AbortError') return 'cancelled'
-  }
-
+  // Computer: open the system save / Downloads location
   triggerVcfDownload(blob, filename)
   return 'downloaded'
 }
