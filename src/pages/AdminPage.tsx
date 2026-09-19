@@ -180,12 +180,7 @@ export default function AdminPage() {
 
           <fieldset>
             <legend>Contact</legend>
-            <Field label="Phone (primary)" value={data.phone} onChange={(v) => update('phone', v)} />
-            <Field
-              label="Phone (secondary)"
-              value={data.phoneSecondary}
-              onChange={(v) => update('phoneSecondary', v)}
-            />
+            <Field label="Phone" value={data.phone} onChange={(v) => update('phone', v)} />
             <Field
               label="WhatsApp (country code + number)"
               value={data.whatsapp}

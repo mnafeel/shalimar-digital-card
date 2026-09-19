@@ -4,17 +4,21 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc --noEmit && vite build && cp dist/index.html dist/404.html && mkdir -p dist/admin && cp dist/index.html dist/admin/index.html",
-    "preview": "vite preview"
+    "dev": "vite preview --host 127.0.0.1 --port 5173",
+    "dev:watch": "vite --host 127.0.0.1 --port 5173",
+    "build": "vite build && cp dist/index.html dist/404.html && mkdir -p dist/admin dist/share-preview && cp dist/index.html dist/admin/index.html && cp dist/index.html dist/share-preview/index.html",
+    "preview": "vite preview --host 127.0.0.1 --port 5173",
+    "start": "npm run build && npm run preview"
   },
   "dependencies": {
     "framer-motion": "^13.4.0",
+    "qrcode": "^1.5.4",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-router-dom": "^7.6.2"
   },
   "devDependencies": {
+    "@types/qrcode": "^1.5.6",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
     "@vitejs/plugin-react": "^4.5.2",

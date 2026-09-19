@@ -34,12 +34,19 @@ export default function DigitalCard() {
   const [data, setData] = useState<CardData>(() => loadCardData())
   const [ready, setReady] = useState(false)
   const [introDone, setIntroDone] = useState(false)
+  const [heroLaidOut, setHeroLaidOut] = useState(false)
   const [shareNote, setShareNote] = useState('')
   const [saveNote, setSaveNote] = useState('')
   const [sharing, setSharing] = useState(false)
   const reduce = useReducedMotion()
   const introLocked = useRef(false)
   const logoSlotRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    // Fallback if shop image is cached/slow — still unlock intro measuring
+    const t = window.setTimeout(() => setHeroLaidOut(true), 600)
+    return () => window.clearTimeout(t)
+  }, [])
 
   useEffect(() => {
     const refresh = () => setData(loadCardData())
@@ -55,17 +62,17 @@ export default function DigitalCard() {
     if (introLocked.current) return
     introLocked.current = true
     setIntroDone(true)
-    window.setTimeout(() => setReady(true), 40)
+    setReady(true)
   }, [])
 
   useEffect(() => {
     if (reduce) finishIntro()
   }, [reduce, finishIntro])
 
-  // Hard guarantee: never leave the dark intro stage stuck
+  // Never leave the intro stuck (layout wait + ~3.2s flight)
   useEffect(() => {
     if (introDone || reduce) return
-    const hard = window.setTimeout(finishIntro, 3600)
+    const hard = window.setTimeout(finishIntro, 5600)
     return () => window.clearTimeout(hard)
   }, [introDone, reduce, finishIntro])
 
@@ -120,6 +127,7 @@ export default function DigitalCard() {
             key="intro"
             logoSrc={logoSrc}
             slotRef={logoSlotRef}
+            layoutReady={heroLaidOut}
             onDone={finishIntro}
           />
         ) : null}
@@ -135,6 +143,8 @@ export default function DigitalCard() {
             className="folio__hero-img"
             src={data.shopFrontUrl || data.wallpaperUrl}
             alt=""
+            onLoad={() => setHeroLaidOut(true)}
+            onError={() => setHeroLaidOut(true)}
           />
           <div className="folio__hero-veil" />
           <Logo3D
@@ -164,20 +174,13 @@ export default function DigitalCard() {
             aria-label="Primary contact"
             {...fadeUp(0.16, reduce || !ready)}
           >
-            <div className="folio-spot folio-spot--call folio-spot--call-duo">
+            <a className="folio-spot folio-spot--call" href={telHref(data.phone)}>
               <IconCall />
-              <div className="folio-spot__stack">
+              <span>
                 <strong>Call</strong>
-                <a className="folio-spot__tel" href={telHref(data.phone)}>
-                  {data.phone}
-                </a>
-                {data.phoneSecondary ? (
-                  <a className="folio-spot__tel folio-spot__tel--alt" href={telHref(data.phoneSecondary)}>
-                    {data.phoneSecondary}
-                  </a>
-                ) : null}
-              </div>
-            </div>
+                <small>{data.phone}</small>
+              </span>
+            </a>
             <a
               className="folio-spot folio-spot--wa"
               href={whatsappHref(data.whatsapp)}
@@ -194,7 +197,7 @@ export default function DigitalCard() {
               <IconSave />
               <span>
                 <strong>Save</strong>
-                <small>{saveNote || 'Both numbers'}</small>
+                <small>{saveNote || 'Contact'}</small>
               </span>
             </button>
             <button
@@ -294,15 +297,18 @@ export default function DigitalCard() {
 function CinematicIntro({
   logoSrc,
   slotRef,
+  layoutReady,
   onDone,
 }: {
   logoSrc: string
   slotRef: RefObject<HTMLDivElement | null>
+  layoutReady: boolean
   onDone: () => void
 }) {
   const finished = useRef(false)
-  const baseW = typeof window !== 'undefined' ? Math.min(window.innerWidth * 0.58, 280) : 260
-  const [aspect, setAspect] = useState(1.05)
+  const pathLocked = useRef(false)
+  const baseW =
+    typeof window !== 'undefined' ? Math.min(window.innerWidth * 0.52, 260) : 240
   const [path, setPath] = useState<{
     fromX: number
     fromY: number
@@ -312,89 +318,145 @@ function CinematicIntro({
     landScale: number
   } | null>(null)
 
-  const baseH = baseW * aspect
+  const finish = useCallback(() => {
+    if (finished.current) return
+    finished.current = true
+    onDone()
+  }, [onDone])
 
   useEffect(() => {
+    if (!layoutReady || pathLocked.current || finished.current) return
+
     let cancelled = false
-    const done = () => {
-      if (cancelled || finished.current) return
-      finished.current = true
-      onDone()
+    let raf = 0
+    let last: { left: number; top: number; width: number; height: number } | null = null
+    let matches = 0
+
+    const readSlot = () => {
+      const slot = slotRef.current
+      if (!slot) return null
+      const r = slot.getBoundingClientRect()
+      // Wait until the hero logo slot has real layout (avoids first-paint jump)
+      if (r.width < 28 || r.height < 28) return null
+      if (r.top < -20 || r.left < -20) return null
+      if (r.top > window.innerHeight - 20) return null
+      return r
     }
 
-    const measure = () => {
-      const slot = slotRef.current
-      if (!slot) return
-      const r = slot.getBoundingClientRect()
-      if (r.width < 8 || r.height < 8) return
+    const lockPath = (r: DOMRect) => {
+      if (cancelled || pathLocked.current || finished.current) return
+      pathLocked.current = true
       const cx = window.innerWidth / 2
       const cy = window.innerHeight / 2
-      setPath((prev) => {
-        if (prev) return prev
-        return {
-          fromX: cx - baseW / 2,
-          fromY: cy - baseH / 2,
-          toX: r.left + r.width / 2 - baseW / 2,
-          toY: r.top + r.height / 2 - baseH / 2,
-          nearScale: 2.35,
-          landScale: r.width / baseW,
-        }
+      setPath({
+        fromX: cx - baseW / 2,
+        fromY: cy - baseW / 2,
+        toX: r.left + r.width / 2 - baseW / 2,
+        toY: r.top + r.height / 2 - baseW / 2,
+        nearScale: 2.15,
+        landScale: Math.max(0.35, r.width / baseW),
       })
     }
 
-    measure()
-    const id = window.requestAnimationFrame(measure)
-    const t = window.setTimeout(measure, 60)
-    const t2 = window.setTimeout(measure, 180)
-    // If slot never measures, still dismiss intro quickly
-    const noPath = window.setTimeout(() => {
-      setPath((prev) => {
-        if (prev) return prev
-        const cx = window.innerWidth / 2
-        const cy = window.innerHeight / 2
-        return {
-          fromX: cx - baseW / 2,
-          fromY: cy - baseH / 2,
-          toX: cx - baseW / 2,
-          toY: cy - baseH / 2,
-          nearScale: 2.1,
-          landScale: 0.55,
+    const sample = () => {
+      if (cancelled || pathLocked.current || finished.current) return
+      const r = readSlot()
+      if (!r) {
+        matches = 0
+        last = null
+        return
+      }
+      if (
+        last &&
+        Math.abs(last.left - r.left) < 1.25 &&
+        Math.abs(last.top - r.top) < 1.25 &&
+        Math.abs(last.width - r.width) < 1.25 &&
+        Math.abs(last.height - r.height) < 1.25
+      ) {
+        matches += 1
+      } else {
+        matches = 0
+        last = { left: r.left, top: r.top, width: r.width, height: r.height }
+      }
+      // 3 consecutive stable frames after layout is ready
+      if (matches >= 2) lockPath(r)
+    }
+
+    const loop = () => {
+      sample()
+      if (!cancelled && !pathLocked.current) raf = window.requestAnimationFrame(loop)
+    }
+
+    // Two frames then start sampling — lets CSS grid / sticky hero settle
+    raf = window.requestAnimationFrame(() => {
+      raf = window.requestAnimationFrame(loop)
+    })
+
+    const ro =
+      typeof ResizeObserver !== 'undefined'
+        ? new ResizeObserver(() => {
+            if (!pathLocked.current) sample()
+          })
+        : null
+    if (ro && slotRef.current) ro.observe(slotRef.current)
+
+    const attachRo = window.setInterval(() => {
+      if (pathLocked.current || cancelled) return
+      if (ro && slotRef.current) {
+        try {
+          ro.observe(slotRef.current)
+        } catch {
+          /* already observed */
         }
-      })
-    }, 400)
-    const failSafe = window.setTimeout(done, 3400)
+      }
+      sample()
+    }, 40)
+
+    // Soft force-lock with best available measure (still better than animating early)
+    const force = window.setTimeout(() => {
+      if (pathLocked.current || cancelled) return
+      const r = readSlot()
+      if (r) lockPath(r)
+    }, 900)
+
+    const failSafe = window.setTimeout(finish, 4800)
 
     return () => {
       cancelled = true
-      window.cancelAnimationFrame(id)
-      window.clearTimeout(t)
-      window.clearTimeout(t2)
-      window.clearTimeout(noPath)
+      window.cancelAnimationFrame(raf)
+      window.clearInterval(attachRo)
+      window.clearTimeout(force)
       window.clearTimeout(failSafe)
+      ro?.disconnect()
     }
-    // intentionally omit baseH — avoid restarting timers when logo aspect loads
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [slotRef, baseW, onDone])
+  }, [layoutReady, slotRef, baseW, finish])
 
   return (
     <motion.div
       className="intro"
       initial={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+      transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
     >
-      {/* Soft dark stage (not harsh black) — fades to reveal the site */}
       <motion.div
         className="intro__stage-bg"
         initial={{ opacity: 1 }}
-        animate={{ opacity: [1, 1, 0.7, 0.25, 0] }}
-        transition={{ duration: 3.9, times: [0, 0.32, 0.5, 0.78, 1], ease: 'easeInOut' }}
+        animate={path ? { opacity: [1, 1, 0.55, 0] } : { opacity: 1 }}
+        transition={
+          path
+            ? { duration: 3.2, times: [0, 0.4, 0.72, 1], ease: 'easeInOut' }
+            : { duration: 0 }
+        }
       />
       <motion.div
         className="intro__glow"
-        initial={{ opacity: 0.55, scale: 0.85 }}
-        animate={{ opacity: [0.55, 0.7, 0.35, 0], scale: [0.85, 1.05, 1.2, 1.4] }}
-        transition={{ duration: 3.9, times: [0, 0.35, 0.7, 1] }}
+        initial={{ opacity: 0.5, scale: 0.9 }}
+        animate={
+          path
+            ? { opacity: [0.5, 0.75, 0.2, 0], scale: [0.9, 1.08, 1.25, 1.4] }
+            : { opacity: 0.5, scale: 0.9 }
+        }
+        transition={path ? { duration: 3.2, times: [0, 0.35, 0.7, 1] } : { duration: 0 }}
         aria-hidden="true"
       />
 
@@ -410,43 +472,27 @@ function CinematicIntro({
             x: path.fromX,
             y: path.fromY,
             scale: path.nearScale,
-            rotateX: 14,
-            rotateY: -24,
+            rotateY: -18,
+            rotateX: 10,
             opacity: 0,
           }}
           animate={{
             x: [path.fromX, path.fromX, path.toX],
             y: [path.fromY, path.fromY, path.toY],
-            scale: [path.nearScale, path.nearScale * 0.96, path.landScale],
-            rotateX: [14, -8, 0],
+            scale: [path.nearScale, path.nearScale * 0.97, path.landScale],
             rotateY: [0, 360, 720],
-            rotateZ: [0, 5, 0],
+            rotateX: [10, -6, 0],
             opacity: [0, 1, 1],
           }}
           transition={{
-            duration: 3.9,
-            times: [0, 0.38, 1],
+            duration: 3.2,
+            times: [0, 0.42, 1],
             ease: [0.22, 1, 0.36, 1],
-            opacity: { duration: 0.45, times: [0, 0.12, 1] },
+            opacity: { duration: 0.4, times: [0, 0.15, 1] },
           }}
-          onAnimationComplete={() => {
-            if (finished.current) return
-            finished.current = true
-            onDone()
-          }}
+          onAnimationComplete={finish}
         >
-          <img
-            className="intro__logo"
-            src={logoSrc}
-            alt="Shalimar Fashions"
-            draggable={false}
-            onLoad={(e) => {
-              const img = e.currentTarget
-              if (img.naturalWidth > 0) {
-                setAspect(img.naturalHeight / img.naturalWidth)
-              }
-            }}
-          />
+          <img className="intro__logo" src={logoSrc} alt="Shalimar Fashions" draggable={false} />
         </motion.div>
       ) : null}
     </motion.div>
@@ -560,11 +606,13 @@ function Logo3D({
         className="folio__logo-stage"
         style={
           reduce
-            ? { opacity: visible ? 1 : 0 }
+            ? { visibility: visible ? 'visible' : 'hidden', opacity: visible ? 1 : 0 }
             : {
                 rotateX: rx,
                 rotateY: ry,
                 transformStyle: 'preserve-3d',
+                // Keep layout size while hidden so intro can measure the final slot
+                visibility: visible ? 'visible' : 'hidden',
                 opacity: visible ? 1 : 0,
               }
         }
@@ -578,9 +626,9 @@ function Logo3D({
         }
         transition={
           reduce || !visible
-            ? { duration: 0.2 }
+            ? { duration: 0.15 }
             : {
-                opacity: { duration: 0.2 },
+                opacity: { duration: 0.25 },
                 scale: { duration: 3.8, repeat: Infinity, ease: 'easeInOut' },
               }
         }
