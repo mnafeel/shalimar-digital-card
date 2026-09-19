@@ -119,20 +119,22 @@ export default function DigitalCard() {
     }
   }
 
-  const saveContact = async () => {
+  const saveContact = () => {
     setSaveNote('Opening…')
-    try {
-      const result = await downloadVCard(data)
-      if (result === 'cancelled') {
-        setSaveNote('')
-        return
-      }
-      if (result === 'opened' || result === 'shared') setSaveNote('Add contact')
-      else setSaveNote('Saved')
-    } catch {
-      setSaveNote('Try again')
-    }
-    window.setTimeout(() => setSaveNote(''), 2200)
+    void downloadVCard(data)
+      .then((result) => {
+        if (result === 'cancelled') {
+          setSaveNote('')
+          return
+        }
+        if (result === 'opened' || result === 'shared') setSaveNote('Add contact')
+        else setSaveNote('Saved')
+        window.setTimeout(() => setSaveNote(''), 2200)
+      })
+      .catch(() => {
+        setSaveNote('Try again')
+        window.setTimeout(() => setSaveNote(''), 2200)
+      })
   }
 
   return (

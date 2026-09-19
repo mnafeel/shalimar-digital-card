@@ -167,15 +167,16 @@ export function instagramHandle(url: string): string {
     .replace(/\/$/, '')
 }
 
-export function buildVCard(data: CardData): string {
+function contactDisplayPhone(data: CardData): string {
   const rawPhone = digitsOnly(data.phone)
-  let phone = ''
-  if (rawPhone) {
-    if (rawPhone.startsWith('91') && rawPhone.length >= 12) phone = `+${rawPhone}`
-    else if (rawPhone.length === 10) phone = `+91${rawPhone}`
-    else phone = rawPhone.startsWith('+') ? rawPhone : `+${rawPhone}`
-  }
+  if (!rawPhone) return ''
+  if (rawPhone.startsWith('91') && rawPhone.length >= 12) return `+${rawPhone}`
+  if (rawPhone.length === 10) return `+91${rawPhone}`
+  return rawPhone.startsWith('+') ? rawPhone : `+${rawPhone}`
+}
 
+export function buildVCard(data: CardData): string {
+  const phone = contactDisplayPhone(data)
   const displayName = (data.ownerName || data.brandName || 'Shalimar Fashions').trim()
   const org = (data.brandName || 'Shalimar Fashions').trim()
   const esc = (value: string) =>
@@ -226,10 +227,6 @@ function isAndroidDevice(): boolean {
   return typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent)
 }
 
-function isMobilePhone(): boolean {
-  return isAppleTouchDevice() || isAndroidDevice()
-}
-
 function triggerVcfDownload(blob: Blob, filename: string): void {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
@@ -265,36 +262,83 @@ function stashVcardInWorker(worker: ServiceWorker, vcard: string): Promise<void>
   })
 }
 
+function launchHref(url: string): void {
+  // Keep this synchronous with the tap so Chrome allows the Intent
+  window.location.href = url
+}
+
+/**
+ * Android: open the Contacts “Add contact” screen with fields pre-filled.
+ * Navigating to a .vcf downloads the file on Chrome — Intent INSERT does not.
+ * Must run inside the tap gesture (no awaits before this).
+ */
+function openAndroidAddContact(data: CardData): void {
+  const name = (data.ownerName || data.brandName || 'Shalimar Fashions').trim()
+  const phone = contactDisplayPhone(data)
+  const email = (data.email || '').trim()
+  const company = (data.brandName || '').trim()
+  const jobTitle = (data.designation || '').trim()
+  const postal = (data.address || '').trim()
+  const notes = [data.tagline, data.website, data.instagram, data.facebook]
+    .map((v) => (v || '').trim())
+    .filter(Boolean)
+    .join('\n')
+
+  const extras = [
+    `S.name=${encodeURIComponent(name)}`,
+    phone ? `S.phone=${encodeURIComponent(phone)}` : '',
+    email ? `S.email=${encodeURIComponent(email)}` : '',
+    company ? `S.company=${encodeURIComponent(company)}` : '',
+    jobTitle ? `S.job_title=${encodeURIComponent(jobTitle)}` : '',
+    postal ? `S.postal=${encodeURIComponent(postal)}` : '',
+    notes ? `S.notes=${encodeURIComponent(notes)}` : '',
+  ].filter(Boolean)
+
+  // Chrome / Samsung Internet: opens system Add Contact with extras filled in
+  const intentUrl =
+    `intent://vnd.android.cursor.dir/raw_contact/#Intent;` +
+    `action=android.intent.action.INSERT;` +
+    `type=vnd.android.cursor.dir/raw_contact;` +
+    extras.join(';') +
+    `;end`
+
+  launchHref(intentUrl)
+}
+
 /**
  * Phone: open the system Create / Add Contact screen with fields pre-filled.
- * Never use Web Share or a download attribute — those save a .vcf file instead.
+ * Android → Contacts Intent (not .vcf download). iPhone → hosted .vcf sheet.
  * Desktop: save dialog / Downloads folder.
  */
 export async function downloadVCard(
   data: CardData,
 ): Promise<'opened' | 'shared' | 'downloaded' | 'cancelled'> {
-  const vcard = buildVCard(data)
   const filename = `${(data.brandName || 'shalimar-fashions')
     .replace(/\s+/g, '-')
     .toLowerCase()}.vcf`
 
-  if (isMobilePhone()) {
+  // Android first — must stay synchronous with the tap (no SW await)
+  if (isAndroidDevice()) {
+    openAndroidAddContact(data)
+    return 'opened'
+  }
+
+  if (isAppleTouchDevice()) {
+    const vcard = buildVCard(data)
     const origin = window.location.origin
     const worker = await ensureContactServiceWorker()
 
     if (worker) {
       await stashVcardInWorker(worker, vcard)
-      // Same-origin .vcf + text/x-vcard → iOS/Android “Create New Contact”
       window.location.assign(`${origin}/contact.vcf`)
       return 'opened'
     }
 
-    // No SW yet: still navigate to a real .vcf URL (not data: / blob: / share)
     window.location.assign(`${origin}/shalimar-fashions.vcf`)
     return 'opened'
   }
 
-  const blob = new Blob([vcard], { type: 'text/vcard;charset=utf-8' })
+  const blob = new Blob([buildVCard(data)], { type: 'text/vcard;charset=utf-8' })
   triggerVcfDownload(blob, filename)
   return 'downloaded'
 }
