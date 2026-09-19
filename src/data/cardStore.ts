@@ -226,6 +226,10 @@ function isAndroidDevice(): boolean {
   return typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent)
 }
 
+function isMobilePhone(): boolean {
+  return isAppleTouchDevice() || isAndroidDevice()
+}
+
 function triggerVcfDownload(blob: Blob, filename: string): void {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
@@ -239,16 +243,31 @@ function triggerVcfDownload(blob: Blob, filename: string): void {
   window.setTimeout(() => URL.revokeObjectURL(url), 4000)
 }
 
-/** Open the system “Add to Contacts” sheet (iPhone-style), without forcing a file download. */
-function openNativeContactSheet(vcard: string): void {
-  // text/x-vcard is what iOS expects for the Create New Contact preview
-  const dataUri = `data:text/x-vcard;charset=utf-8,${encodeURIComponent(vcard)}`
-  window.location.assign(dataUri)
+/** Register (or reuse) the worker that serves /contact.vcf with the right MIME type. */
+export async function ensureContactServiceWorker(): Promise<ServiceWorker | null> {
+  if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return null
+  try {
+    const reg = await navigator.serviceWorker.register('/sw-contact.js', { scope: '/' })
+    await navigator.serviceWorker.ready
+    return reg.active ?? navigator.serviceWorker.controller
+  } catch {
+    return null
+  }
+}
+
+function stashVcardInWorker(worker: ServiceWorker, vcard: string): Promise<void> {
+  return new Promise((resolve) => {
+    const channel = new MessageChannel()
+    const done = () => resolve()
+    channel.port1.onmessage = done
+    window.setTimeout(done, 250)
+    worker.postMessage({ type: 'SET_VCARD', vcard }, [channel.port2])
+  })
 }
 
 /**
- * Save to Contacts — same idea as receiving a shared contact.
- * Mobile: share-as-contact or open the phone’s Add Contact screen (not a download).
+ * Phone: open the system Create / Add Contact screen with fields pre-filled.
+ * Never use Web Share or a download attribute — those save a .vcf file instead.
  * Desktop: save dialog / Downloads folder.
  */
 export async function downloadVCard(
@@ -258,36 +277,24 @@ export async function downloadVCard(
   const filename = `${(data.brandName || 'shalimar-fashions')
     .replace(/\s+/g, '-')
     .toLowerCase()}.vcf`
-  const blob = new Blob([vcard], { type: 'text/vcard;charset=utf-8' })
-  const apple = isAppleTouchDevice()
-  const android = isAndroidDevice()
-  const mobile = apple || android
 
-  const contactFiles = [
-    new File([vcard], filename, { type: 'text/vcard' }),
-    new File([vcard], filename, { type: 'text/x-vcard' }),
-  ]
+  if (isMobilePhone()) {
+    const origin = window.location.origin
+    const worker = await ensureContactServiceWorker()
 
-  if (mobile) {
-    // 1) Share as a contact file (same path as someone sharing a contact with you)
-    for (const file of contactFiles) {
-      try {
-        if (typeof navigator !== 'undefined' && navigator.canShare?.({ files: [file] })) {
-          // files only — keeps the sheet contact-focused (no plain-text share)
-          await navigator.share({ files: [file] })
-          return 'shared'
-        }
-      } catch (err) {
-        if (err instanceof DOMException && err.name === 'AbortError') return 'cancelled'
-      }
+    if (worker) {
+      await stashVcardInWorker(worker, vcard)
+      // Same-origin .vcf + text/x-vcard → iOS/Android “Create New Contact”
+      window.location.assign(`${origin}/contact.vcf`)
+      return 'opened'
     }
 
-    // 2) iPhone/Android: open native Add Contact UI (not a downloaded file)
-    openNativeContactSheet(vcard)
+    // No SW yet: still navigate to a real .vcf URL (not data: / blob: / share)
+    window.location.assign(`${origin}/shalimar-fashions.vcf`)
     return 'opened'
   }
 
-  // Computer: open the system save / Downloads location
+  const blob = new Blob([vcard], { type: 'text/vcard;charset=utf-8' })
   triggerVcfDownload(blob, filename)
   return 'downloaded'
 }

@@ -127,7 +127,7 @@ export default function DigitalCard() {
         setSaveNote('')
         return
       }
-      if (result === 'opened' || result === 'shared') setSaveNote('Contacts')
+      if (result === 'opened' || result === 'shared') setSaveNote('Add contact')
       else setSaveNote('Saved')
     } catch {
       setSaveNote('Try again')

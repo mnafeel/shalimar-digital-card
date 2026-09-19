@@ -1,0 +1,19 @@
+BEGIN:VCARD
+VERSION:3.0
+PRODID:-//Shalimar Fashions//Digital Visiting Card//EN
+N:Fashions;Shalimar;;;
+FN:Shalimar Fashions
+ORG:Shalimar Fashions
+TITLE:Premium Fashion House
+TEL;TYPE=CELL,VOICE:+917025648555
+EMAIL;TYPE=INTERNET:hello@shalimarfashions.com
+URL:https://shalimarfashions.com
+ADR;TYPE=WORK:;;Market Road\, Ernakulam\, Kochi\, Kerala;;;;
+item1.URL:https://instagram.com/shalimarfashions
+item1.X-ABLabel:Instagram
+item2.URL:https://facebook.com/shalimarfashions
+item2.X-ABLabel:Facebook
+item3.URL:https://maps.google.com/maps?q=Shalimar+Fashions,+Market+Road,+Ernakulam&hl=en&t=k&z=18
+item3.X-ABLabel:Map
+NOTE:Timeless elegance · Modern craft
+END:VCARD
