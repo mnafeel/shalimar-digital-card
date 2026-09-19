@@ -11,7 +11,8 @@ import {
   loadCardData,
   fetchCardDataCloud,
   downloadVCard,
-  buildAndroidContactIntentUrl,
+  prepareContactVcf,
+  buildAndroidVCardViewIntent,
   isAndroidPhone,
   instagramHandle,
   mailHref,
@@ -73,6 +74,11 @@ export default function DigitalCard() {
     }
   }, [])
 
+  // Preload contact.vcf so Android can open it like a downloaded contact file
+  useEffect(() => {
+    void prepareContactVcf(data)
+  }, [data])
+
   const finishIntro = useCallback(() => {
     if (introLocked.current) return
     introLocked.current = true
@@ -129,10 +135,9 @@ export default function DigitalCard() {
           setSaveNote('')
           return
         }
-        if (result === 'shared') setSaveNote('Pick Contacts')
-        else if (result === 'opened') setSaveNote('Add contact')
+        if (result === 'opened' || result === 'shared') setSaveNote('Contacts')
         else setSaveNote('Saved')
-        window.setTimeout(() => setSaveNote(''), 2800)
+        window.setTimeout(() => setSaveNote(''), 2200)
       })
       .catch(() => {
         setSaveNote('Try again')
@@ -140,7 +145,12 @@ export default function DigitalCard() {
       })
   }
 
-  const androidSaveHref = isAndroidPhone() ? buildAndroidContactIntentUrl(data) : ''
+  // Real link to open contact.vcf in Contacts (same as opening a downloaded .vcf)
+  const androidSaveHref = isAndroidPhone()
+    ? buildAndroidVCardViewIntent(
+        typeof window !== 'undefined' ? window.location.origin : 'https://digitalcard.shalimarfashions.com',
+      )
+    : ''
 
   return (
     <div className="folio">
@@ -219,22 +229,11 @@ export default function DigitalCard() {
               </span>
             </a>
             {androidSaveHref ? (
-              <a
-                className="folio-spot folio-spot--save"
-                href={androidSaveHref}
-                onClick={(event) => {
-                  // Prefer handing the contact to the Contacts app via the system sheet.
-                  // Intent href remains as fallback when Web Share isn’t available.
-                  if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
-                    event.preventDefault()
-                    saveContact()
-                  }
-                }}
-              >
+              <a className="folio-spot folio-spot--save" href={androidSaveHref}>
                 <IconContact />
                 <span>
                   <strong>Save to Contacts</strong>
-                  <small>{saveNote || 'Add to phone'}</small>
+                  <small>Open & save</small>
                 </span>
               </a>
             ) : (

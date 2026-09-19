@@ -1,5 +1,5 @@
-/* Serve contact.vcf with text/x-vcard so phones open “Create New Contact”, not a file download. */
-const CACHE = 'sf-contact-vcard-v1'
+/* Serve contact.vcf with text/x-vcard so phones open it in Contacts (same as a downloaded .vcf). */
+const CACHE = 'sf-contact-vcard-v2'
 const VCARD_PATH = '/contact.vcf'
 
 self.addEventListener('install', (event) => {
@@ -8,7 +8,12 @@ self.addEventListener('install', (event) => {
 })
 
 self.addEventListener('activate', (event) => {
-  event.waitUntil(self.clients.claim())
+  event.waitUntil(
+    caches
+      .keys()
+      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
+      .then(() => self.clients.claim()),
+  )
 })
 
 self.addEventListener('message', (event) => {
@@ -26,7 +31,7 @@ self.addEventListener('message', (event) => {
           new Response(data.vcard, {
             headers: {
               'Content-Type': 'text/x-vcard; charset=utf-8',
-              'Content-Disposition': 'inline; filename="shalimar-fashions.vcf"',
+              'Content-Disposition': 'inline; filename="Shalimar-Fashions.vcf"',
               'Cache-Control': 'no-store',
             },
           }),
@@ -58,7 +63,7 @@ self.addEventListener('fetch', (event) => {
           return new Response(body, {
             headers: {
               'Content-Type': 'text/x-vcard; charset=utf-8',
-              'Content-Disposition': 'inline; filename="shalimar-fashions.vcf"',
+              'Content-Disposition': 'inline; filename="Shalimar-Fashions.vcf"',
             },
           })
         }
