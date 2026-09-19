@@ -237,7 +237,17 @@ function triggerVcfDownload(blob: Blob, filename: string): void {
   document.body.appendChild(a)
   a.click()
   a.remove()
-  window.setTimeout(() => URL.revokeObjectURL(url), 4000)
+  window.setTimeout(() => URL.revokeObjectURL(url), 60_000)
+}
+
+function clickHref(href: string): void {
+  const a = document.createElement('a')
+  a.href = href
+  a.rel = 'noopener'
+  a.style.cssText = 'position:fixed;left:-9999px;top:0;width:1px;height:1px;opacity:0'
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
 }
 
 /** Register (or reuse) the worker that serves /contact.vcf with the right MIME type. */
@@ -262,7 +272,7 @@ function stashVcardInWorker(worker: ServiceWorker, vcard: string): Promise<void>
   })
 }
 
-/** Keep /contact.vcf warm so phones open the real contact-file save UI. */
+/** Keep /contact.vcf warm so iPhone can open the Save Contact sheet. */
 export async function prepareContactVcf(data: CardData): Promise<void> {
   try {
     const worker = await ensureContactServiceWorker()
@@ -280,13 +290,12 @@ export function isApplePhone(): boolean {
   return isAppleTouchDevice()
 }
 
-/** Same-origin .vcf URL — iPhone opens Save Contact from this. Do not use on Android (Chrome downloads). */
+/** Same-origin .vcf URL — iPhone opens Save Contact from this. */
 export function contactVcfHref(origin = typeof window !== 'undefined' ? window.location.origin : ''): string {
   const base = (origin || 'https://digitalcard.shalimarfashions.com').replace(/\/$/, '')
   return `${base}/contact.vcf`
 }
 
-/** Prefill Add Contact — used if VCF VIEW cannot be handed to Contacts. */
 function buildAndroidInsertContactIntent(data: CardData): string {
   const name = (data.ownerName || data.brandName || 'Shalimar Fashions').trim()
   const phone = contactDisplayPhone(data)
@@ -312,24 +321,16 @@ function buildAndroidInsertContactIntent(data: CardData): string {
   )
 }
 
-/**
- * Android: hand the hosted .vcf to Contacts (ACTION_VIEW) — same as opening the file
- * from Downloads (name + Save / Google account sheet). Never link to the .vcf in Chrome;
- * that only downloads.
- *
- * If VIEW cannot run, fall back to INSERT (still opens saveable contact UI — not a download).
- */
+/** Hand hosted .vcf to Contacts app (open). Falls back to Add Contact form. */
 export function buildAndroidOpenVcfIntent(
   data: CardData,
   origin = typeof window !== 'undefined' ? window.location.origin : '',
 ): string {
-  // Firefox does not support Chrome intent: URLs
   if (typeof navigator !== 'undefined' && /Firefox/i.test(navigator.userAgent)) {
     return buildAndroidInsertContactIntent(data)
   }
 
   const base = (origin || 'https://digitalcard.shalimarfashions.com').replace(/\/$/, '')
-  // Static file on the host — Contacts fetches this itself (not via Chrome download)
   const vcf = new URL('/shalimar-fashions.vcf', `${base}/`)
   const scheme = vcf.protocol.replace(':', '') || 'https'
   const insertFallback = encodeURIComponent(buildAndroidInsertContactIntent(data))
@@ -345,9 +346,29 @@ export function buildAndroidOpenVcfIntent(
 }
 
 /**
- * Open the system Save Contact UI (same as opening a .vcf file).
- * iPhone: navigate to .vcf (Safari shows Save Contact).
- * Android: Intent VIEW of the .vcf into Contacts (Chrome must not download the file).
+ * Android “save & open”:
+ * 1) Save the .vcf (Chrome shows a bar with Open)
+ * 2) Try to open it in Contacts immediately
+ * Opening the saved file is what shows name + Save / Google account — same as opening a VCF.
+ */
+export function saveAndOpenVCardAndroid(data: CardData): 'opened' {
+  const vcard = buildVCard(data)
+  const filename = `${(data.brandName || 'Shalimar-Fashions').replace(/\s+/g, '-')}.vcf`
+  const blob = new Blob([vcard], { type: 'text/x-vcard;charset=utf-8' })
+
+  // 1) Save — Android Chrome snackbar includes “Open” → Contacts import sheet
+  triggerVcfDownload(blob, filename)
+
+  // 2) Open — hand file to Contacts when the browser allows it
+  clickHref(buildAndroidOpenVcfIntent(data, window.location.origin))
+
+  return 'opened'
+}
+
+/**
+ * Open the system Save Contact UI.
+ * iPhone: navigate to .vcf (Safari Save Contact sheet).
+ * Android: save & open (.vcf download + open in Contacts).
  * Desktop: save dialog / Downloads folder.
  */
 export async function downloadVCard(
@@ -357,9 +378,8 @@ export async function downloadVCard(
     .replace(/\s+/g, '-')
     .toLowerCase()}.vcf`
 
-  // Android: never assign a .vcf URL — Chrome will only download it
   if (isAndroidDevice()) {
-    window.location.assign(buildAndroidOpenVcfIntent(data, window.location.origin))
+    saveAndOpenVCardAndroid(data)
     return 'opened'
   }
 

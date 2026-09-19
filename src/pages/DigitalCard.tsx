@@ -13,7 +13,7 @@ import {
   downloadVCard,
   prepareContactVcf,
   contactVcfHref,
-  buildAndroidOpenVcfIntent,
+  saveAndOpenVCardAndroid,
   isAndroidPhone,
   isApplePhone,
   instagramHandle,
@@ -147,14 +147,19 @@ export default function DigitalCard() {
       })
   }
 
-  // iPhone: open .vcf in Safari. Android: Intent VIEW into Contacts (never a .vcf http link).
+  const saveContactAndroid = () => {
+    setSaveNote('Tap Open…')
+    try {
+      saveAndOpenVCardAndroid(data)
+    } catch {
+      setSaveNote('Try again')
+    }
+    window.setTimeout(() => setSaveNote(''), 5000)
+  }
+
   const origin =
     typeof window !== 'undefined' ? window.location.origin : 'https://digitalcard.shalimarfashions.com'
-  const phoneSaveHref = isAndroidPhone()
-    ? buildAndroidOpenVcfIntent(data, origin)
-    : isApplePhone()
-      ? contactVcfHref(origin)
-      : ''
+  const appleSaveHref = isApplePhone() ? contactVcfHref(origin) : ''
 
   return (
     <div className="folio">
@@ -232,8 +237,16 @@ export default function DigitalCard() {
                 <small>Chat</small>
               </span>
             </a>
-            {phoneSaveHref ? (
-              <a className="folio-spot folio-spot--save" href={phoneSaveHref}>
+            {isAndroidPhone() ? (
+              <button type="button" className="folio-spot folio-spot--save" onClick={saveContactAndroid}>
+                <IconContact />
+                <span>
+                  <strong>Save to Contacts</strong>
+                  <small>{saveNote || 'Save & open'}</small>
+                </span>
+              </button>
+            ) : appleSaveHref ? (
+              <a className="folio-spot folio-spot--save" href={appleSaveHref}>
                 <IconContact />
                 <span>
                   <strong>Save to Contacts</strong>
