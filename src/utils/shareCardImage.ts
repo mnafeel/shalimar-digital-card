@@ -239,8 +239,8 @@ export async function renderDigitalCardImage(
 
   ty += 28
   ctx.fillStyle = '#2a2724'
-  ctx.font = '700 23px Montserrat, Figtree, system-ui, sans-serif'
-  letter.letterSpacing = '0.06em'
+  ctx.font = '600 24px Cormorant Garamond, Fraunces, Georgia, serif'
+  letter.letterSpacing = '0.02em'
   ctx.fillText('Shalimar Digital Card', centerX, ty)
   letter.letterSpacing = '0'
 
@@ -310,15 +310,22 @@ export async function shareDigitalCard(
 ): Promise<'shared' | 'downloaded' | 'copied' | 'cancelled'> {
   const url = cardUrl?.includes('digitalcard') ? cardUrl : SHARE_URL
   const blob = await renderDigitalCardImage(data, url)
-  const filename = 'shalimar-visiting-card.png'
+  const filename = 'shalimar-fashions-visiting-card.png'
   const file = new File([blob], filename, { type: 'image/png' })
-  const text = `${data.brandName} — Digital Visiting Card\n${SHARE_URL}`
+  const brand = data.brandName || 'Shalimar Fashions'
+  const text = [
+    `${brand}`,
+    'Premium digital visiting card',
+    '',
+    'Open our card · save contact · find the boutique',
+    hostLabel(SHARE_URL),
+  ].join('\n')
 
   try {
     if (typeof navigator !== 'undefined' && navigator.canShare?.({ files: [file] })) {
       await navigator.share({
         files: [file],
-        title: `${data.brandName} Digital Card`,
+        title: `${brand} · Visiting Card`,
         text,
       })
       return 'shared'
@@ -329,7 +336,7 @@ export async function shareDigitalCard(
 
   try {
     if (typeof navigator !== 'undefined' && navigator.share) {
-      await navigator.share({ title: data.brandName, text, url: SHARE_URL })
+      await navigator.share({ title: `${brand} · Visiting Card`, text, url: SHARE_URL })
       triggerDownload(blob, filename)
       return 'shared'
     }
@@ -339,7 +346,9 @@ export async function shareDigitalCard(
 
   triggerDownload(blob, filename)
   try {
-    await navigator.clipboard.writeText(SHARE_URL)
+    await navigator.clipboard.writeText(
+      `${brand}\nPremium digital visiting card\n${SHARE_URL}`,
+    )
     return 'downloaded'
   } catch {
     return 'downloaded'

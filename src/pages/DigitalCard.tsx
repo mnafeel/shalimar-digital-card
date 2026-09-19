@@ -85,7 +85,7 @@ export default function DigitalCard() {
   // Never leave the intro stuck (layout wait + ~3.2s flight)
   useEffect(() => {
     if (introDone || reduce) return
-    const hard = window.setTimeout(finishIntro, 5600)
+    const hard = window.setTimeout(finishIntro, 7200)
     return () => window.clearTimeout(hard)
   }, [introDone, reduce, finishIntro])
 
@@ -179,6 +179,10 @@ export default function DigitalCard() {
             <p className="folio__kicker">{data.accentNote}</p>
             <TypedBrand active={ready} reduce={!!reduce} />
             <p className="folio__tag">{data.tagline}</p>
+            <a className="folio__card-link" href={cardUrl || 'https://digitalcard.shalimarfashions.com'}>
+              <span className="folio__card-link-label">Digital visiting card</span>
+              <span className="folio__card-link-url">digitalcard.shalimarfashions.com</span>
+            </a>
             {data.about ? <p className="folio__about">{data.about}</p> : null}
           </motion.header>
 
@@ -222,7 +226,7 @@ export default function DigitalCard() {
               <IconShare />
               <span>
                 <strong>Share</strong>
-                <small>{shareNote || 'Digital card'}</small>
+                <small>{shareNote || 'Visiting card'}</small>
               </span>
             </button>
           </motion.section>
@@ -320,13 +324,17 @@ function CinematicIntro({
 }) {
   const finished = useRef(false)
   const pathLocked = useRef(false)
+  const flyerRef = useRef<HTMLDivElement>(null)
   const baseW =
     typeof window !== 'undefined' ? Math.min(window.innerWidth * 0.52, 260) : 240
+  const [aspect, setAspect] = useState(0.42)
+  const [aspectReady, setAspectReady] = useState(false)
   const [path, setPath] = useState<{
     fromX: number
     fromY: number
     toX: number
     toY: number
+    baseW: number
     nearScale: number
     landScale: number
   } | null>(null)
@@ -338,7 +346,29 @@ function CinematicIntro({
   }, [onDone])
 
   useEffect(() => {
-    if (!layoutReady || pathLocked.current || finished.current) return
+    let alive = true
+    const img = new Image()
+    img.decoding = 'async'
+    const apply = () => {
+      if (!alive) return
+      if (img.naturalWidth > 0 && img.naturalHeight > 0) {
+        setAspect(img.naturalHeight / img.naturalWidth)
+      }
+      setAspectReady(true)
+    }
+    img.onload = apply
+    img.onerror = () => {
+      if (alive) setAspectReady(true)
+    }
+    img.src = logoSrc
+    if (img.complete) apply()
+    return () => {
+      alive = false
+    }
+  }, [logoSrc])
+
+  useEffect(() => {
+    if (!layoutReady || !aspectReady || pathLocked.current || finished.current) return
 
     let cancelled = false
     let raf = 0
@@ -348,26 +378,34 @@ function CinematicIntro({
     const readSlot = () => {
       const slot = slotRef.current
       if (!slot) return null
-      const r = slot.getBoundingClientRect()
-      // Wait until the hero logo slot has real layout (avoids first-paint jump)
-      if (r.width < 28 || r.height < 28) return null
-      if (r.top < -20 || r.left < -20) return null
-      if (r.top > window.innerHeight - 20) return null
+      const img = slot.querySelector('img')
+      const r = (img ?? slot).getBoundingClientRect()
+      if (r.width < 36 || r.height < 16) return null
+      if (r.bottom < 8 || r.top > window.innerHeight - 8) return null
+      if (r.right < 8 || r.left > window.innerWidth - 8) return null
       return r
     }
 
     const lockPath = (r: DOMRect) => {
       if (cancelled || pathLocked.current || finished.current) return
       pathLocked.current = true
-      const cx = window.innerWidth / 2
-      const cy = window.innerHeight / 2
+      const boxW = baseW
+      const boxH = boxW * aspect
+      const vw = window.visualViewport?.width ?? window.innerWidth
+      const vh = window.visualViewport?.height ?? window.innerHeight
+      const ox = window.visualViewport?.offsetLeft ?? 0
+      const oy = window.visualViewport?.offsetTop ?? 0
+      const cx = ox + vw / 2
+      const cy = oy + vh / 2
+      // Center-origin: x/y are the unscaled box top-left; scale keeps the center fixed
       setPath({
-        fromX: cx - baseW / 2,
-        fromY: cy - baseW / 2,
-        toX: r.left + r.width / 2 - baseW / 2,
-        toY: r.top + r.height / 2 - baseW / 2,
-        nearScale: 2.15,
-        landScale: Math.max(0.35, r.width / baseW),
+        fromX: cx - boxW / 2,
+        fromY: cy - boxH / 2,
+        toX: r.left + r.width / 2 - boxW / 2,
+        toY: r.top + r.height / 2 - boxH / 2,
+        baseW: boxW,
+        nearScale: 2.05,
+        landScale: r.width / boxW,
       })
     }
 
@@ -381,18 +419,17 @@ function CinematicIntro({
       }
       if (
         last &&
-        Math.abs(last.left - r.left) < 1.25 &&
-        Math.abs(last.top - r.top) < 1.25 &&
-        Math.abs(last.width - r.width) < 1.25 &&
-        Math.abs(last.height - r.height) < 1.25
+        Math.abs(last.left - r.left) < 0.75 &&
+        Math.abs(last.top - r.top) < 0.75 &&
+        Math.abs(last.width - r.width) < 0.75 &&
+        Math.abs(last.height - r.height) < 0.75
       ) {
         matches += 1
       } else {
         matches = 0
         last = { left: r.left, top: r.top, width: r.width, height: r.height }
       }
-      // 3 consecutive stable frames after layout is ready
-      if (matches >= 2) lockPath(r)
+      if (matches >= 4) lockPath(r)
     }
 
     const loop = () => {
@@ -400,7 +437,6 @@ function CinematicIntro({
       if (!cancelled && !pathLocked.current) raf = window.requestAnimationFrame(loop)
     }
 
-    // Two frames then start sampling — lets CSS grid / sticky hero settle
     raf = window.requestAnimationFrame(() => {
       raf = window.requestAnimationFrame(loop)
     })
@@ -408,7 +444,11 @@ function CinematicIntro({
     const ro =
       typeof ResizeObserver !== 'undefined'
         ? new ResizeObserver(() => {
-            if (!pathLocked.current) sample()
+            if (!pathLocked.current) {
+              matches = 0
+              last = null
+              sample()
+            }
           })
         : null
     if (ro && slotRef.current) ro.observe(slotRef.current)
@@ -423,16 +463,25 @@ function CinematicIntro({
         }
       }
       sample()
-    }, 40)
+    }, 50)
 
-    // Soft force-lock with best available measure (still better than animating early)
+    const onViewport = () => {
+      if (!pathLocked.current) {
+        matches = 0
+        last = null
+      }
+    }
+    window.visualViewport?.addEventListener('resize', onViewport)
+    window.visualViewport?.addEventListener('scroll', onViewport)
+    window.addEventListener('resize', onViewport)
+
     const force = window.setTimeout(() => {
       if (pathLocked.current || cancelled) return
       const r = readSlot()
       if (r) lockPath(r)
-    }, 900)
+    }, 1400)
 
-    const failSafe = window.setTimeout(finish, 4800)
+    const failSafe = window.setTimeout(finish, 5600)
 
     return () => {
       cancelled = true
@@ -441,15 +490,35 @@ function CinematicIntro({
       window.clearTimeout(force)
       window.clearTimeout(failSafe)
       ro?.disconnect()
+      window.visualViewport?.removeEventListener('resize', onViewport)
+      window.visualViewport?.removeEventListener('scroll', onViewport)
+      window.removeEventListener('resize', onViewport)
     }
-  }, [layoutReady, slotRef, baseW, finish])
+  }, [layoutReady, aspectReady, slotRef, baseW, aspect, finish])
+
+  const snapToSlotThenFinish = useCallback(() => {
+    const slot = slotRef.current
+    const flyer = flyerRef.current
+    if (slot && flyer) {
+      const img = slot.querySelector('img')
+      const r = (img ?? slot).getBoundingClientRect()
+      // Pixel-snap to the live hero logo box right before handoff
+      flyer.style.transition = 'none'
+      flyer.style.width = `${r.width}px`
+      flyer.style.transform = 'none'
+      flyer.style.left = `${r.left}px`
+      flyer.style.top = `${r.top}px`
+      void flyer.offsetWidth
+    }
+    window.requestAnimationFrame(() => finish())
+  }, [finish, slotRef])
 
   return (
     <motion.div
       className="intro"
       initial={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+      transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
     >
       <motion.div
         className="intro__stage-bg"
@@ -457,7 +526,7 @@ function CinematicIntro({
         animate={path ? { opacity: [1, 1, 0.55, 0] } : { opacity: 1 }}
         transition={
           path
-            ? { duration: 3.2, times: [0, 0.4, 0.72, 1], ease: 'easeInOut' }
+            ? { duration: 3.15, times: [0, 0.4, 0.72, 1], ease: 'easeInOut' }
             : { duration: 0 }
         }
       />
@@ -469,15 +538,16 @@ function CinematicIntro({
             ? { opacity: [0.5, 0.75, 0.2, 0], scale: [0.9, 1.08, 1.25, 1.4] }
             : { opacity: 0.5, scale: 0.9 }
         }
-        transition={path ? { duration: 3.2, times: [0, 0.35, 0.7, 1] } : { duration: 0 }}
+        transition={path ? { duration: 3.15, times: [0, 0.35, 0.7, 1] } : { duration: 0 }}
         aria-hidden="true"
       />
 
       {path ? (
         <motion.div
+          ref={flyerRef}
           className="intro__flyer"
           style={{
-            width: baseW,
+            width: path.baseW,
             transformOrigin: 'center center',
             transformStyle: 'preserve-3d',
           }}
@@ -492,18 +562,18 @@ function CinematicIntro({
           animate={{
             x: [path.fromX, path.fromX, path.toX],
             y: [path.fromY, path.fromY, path.toY],
-            scale: [path.nearScale, path.nearScale * 0.97, path.landScale],
+            scale: [path.nearScale, path.nearScale * 0.96, path.landScale],
             rotateY: [0, 360, 720],
             rotateX: [10, -6, 0],
             opacity: [0, 1, 1],
           }}
           transition={{
-            duration: 3.2,
-            times: [0, 0.42, 1],
+            duration: 3.15,
+            times: [0, 0.4, 1],
             ease: [0.22, 1, 0.36, 1],
-            opacity: { duration: 0.4, times: [0, 0.15, 1] },
+            opacity: { duration: 0.35, times: [0, 0.12, 1] },
           }}
-          onAnimationComplete={finish}
+          onAnimationComplete={snapToSlotThenFinish}
         >
           <img className="intro__logo" src={logoSrc} alt="Shalimar Fashions" draggable={false} />
         </motion.div>
@@ -513,8 +583,8 @@ function CinematicIntro({
 }
 
 function TypedBrand({ active, reduce }: { active: boolean; reduce: boolean }) {
-  const fullMain = 'SHALIMAR'
-  const fullSub = 'FASHIONS'
+  const fullMain = 'Shalimar'
+  const fullSub = 'Fashions'
   const [main, setMain] = useState(reduce ? fullMain : '')
   const [sub, setSub] = useState(reduce ? fullSub : '')
   const [phase, setPhase] = useState<'main' | 'sub' | 'done'>(reduce ? 'done' : 'main')
@@ -538,7 +608,7 @@ function TypedBrand({ active, reduce }: { active: boolean; reduce: boolean }) {
         window.clearInterval(mainTimer)
         setPhase('sub')
       }
-    }, 70)
+    }, 78)
 
     return () => window.clearInterval(mainTimer)
   }, [active, reduce])
@@ -553,7 +623,7 @@ function TypedBrand({ active, reduce }: { active: boolean; reduce: boolean }) {
         window.clearInterval(subTimer)
         setPhase('done')
       }
-    }, 55)
+    }, 62)
     return () => window.clearInterval(subTimer)
   }, [phase, active, reduce])
 
@@ -635,14 +705,13 @@ function Logo3D({
             ? { opacity: visible ? 1 : 0 }
             : reduce
               ? { opacity: 1, scale: 1 }
-              : { opacity: 1, scale: [1, 1.06, 1] }
+              : { opacity: 1, scale: 1 }
         }
         transition={
           reduce || !visible
             ? { duration: 0.15 }
             : {
-                opacity: { duration: 0.25 },
-                scale: { duration: 3.8, repeat: Infinity, ease: 'easeInOut' },
+                opacity: { duration: 0.2 },
               }
         }
       >
