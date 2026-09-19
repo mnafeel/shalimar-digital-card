@@ -312,12 +312,12 @@ export async function shareDigitalCard(
   const blob = await renderDigitalCardImage(data, url)
   const filename = 'shalimar-visiting-card.png'
   const file = new File([blob], filename, { type: 'image/png' })
-  const brand = data.brandName || 'Shalimar Fashions'
+  const brand = (data.brandName || 'Shalimar Fashions').toUpperCase()
   const text = [
     brand,
     '',
-    'Open our card',
-    'Find our shop',
+    'Open Our Digital Visiting Card',
+    'Find Our Shop',
     hostLabel(SHARE_URL),
   ].join('\n')
 
@@ -346,7 +346,9 @@ export async function shareDigitalCard(
 
   triggerDownload(blob, filename)
   try {
-    await navigator.clipboard.writeText(`${brand}\n\nOpen our card\nFind our shop\n${SHARE_URL}`)
+    await navigator.clipboard.writeText(
+      `${brand}\n\nOpen Our Digital Visiting Card\nFind Our Shop\n${SHARE_URL}`,
+    )
     return 'downloaded'
   } catch {
     return 'downloaded'

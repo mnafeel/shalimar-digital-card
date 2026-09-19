@@ -93,8 +93,9 @@ export function recordShareLinkOpen(slug: string): void {
 }
 
 export function whatsappShareHref(shareUrl: string, brandName: string): string {
+  const brand = (brandName || 'Shalimar Fashions').toUpperCase()
   const text = encodeURIComponent(
-    `${brandName || 'Shalimar Fashions'}\n\nOpen our card\nFind our shop\n${shareUrl}`,
+    `${brand}\n\nOpen Our Digital Visiting Card\nFind Our Shop\n${shareUrl}`,
   )
   return `https://wa.me/?text=${text}`
 }
