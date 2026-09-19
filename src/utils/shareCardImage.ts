@@ -4,8 +4,15 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image()
     img.decoding = 'async'
-    img.onload = () => resolve(img)
-    img.onerror = () => reject(new Error(`Failed to load ${src}`))
+    const timer = window.setTimeout(() => reject(new Error(`Timeout ${src}`)), 4000)
+    img.onload = () => {
+      window.clearTimeout(timer)
+      resolve(img)
+    }
+    img.onerror = () => {
+      window.clearTimeout(timer)
+      reject(new Error(`Failed to load ${src}`))
+    }
     img.src = src
   })
 }
@@ -65,7 +72,10 @@ export async function renderDigitalCardImage(
   const ctx = canvas.getContext('2d')
   if (!ctx) throw new Error('Canvas unavailable')
 
-  await document.fonts.ready.catch(() => undefined)
+  await Promise.race([
+    document.fonts.ready.catch(() => undefined),
+    new Promise((r) => window.setTimeout(r, 800)),
+  ])
 
   const [shop, logo] = await Promise.all([
     loadImage(data.shopFrontUrl || data.wallpaperUrl || '/shop/front.jpg').catch(() => null),

@@ -62,6 +62,13 @@ export default function DigitalCard() {
     if (reduce) finishIntro()
   }, [reduce, finishIntro])
 
+  // Hard guarantee: never leave the dark intro stage stuck
+  useEffect(() => {
+    if (introDone || reduce) return
+    const hard = window.setTimeout(finishIntro, 3600)
+    return () => window.clearTimeout(hard)
+  }, [introDone, reduce, finishIntro])
+
   const handle = instagramHandle(data.instagram)
   const logoSrc = '/brand/logo-hero-white.png'
   const cardUrl =
@@ -308,6 +315,13 @@ function CinematicIntro({
   const baseH = baseW * aspect
 
   useEffect(() => {
+    let cancelled = false
+    const done = () => {
+      if (cancelled || finished.current) return
+      finished.current = true
+      onDone()
+    }
+
     const measure = () => {
       const slot = slotRef.current
       if (!slot) return
@@ -315,35 +329,52 @@ function CinematicIntro({
       if (r.width < 8 || r.height < 8) return
       const cx = window.innerWidth / 2
       const cy = window.innerHeight / 2
-      setPath({
-        fromX: cx - baseW / 2,
-        fromY: cy - baseH / 2,
-        toX: r.left + r.width / 2 - baseW / 2,
-        toY: r.top + r.height / 2 - baseH / 2,
-        nearScale: 2.35,
-        landScale: r.width / baseW,
+      setPath((prev) => {
+        if (prev) return prev
+        return {
+          fromX: cx - baseW / 2,
+          fromY: cy - baseH / 2,
+          toX: r.left + r.width / 2 - baseW / 2,
+          toY: r.top + r.height / 2 - baseH / 2,
+          nearScale: 2.35,
+          landScale: r.width / baseW,
+        }
       })
     }
 
     measure()
     const id = window.requestAnimationFrame(measure)
-    const t = window.setTimeout(measure, 80)
-    const t2 = window.setTimeout(measure, 220)
-    const failSafe = window.setTimeout(() => {
-      if (!finished.current) {
-        finished.current = true
-        onDone()
-      }
-    }, 5600)
-    window.addEventListener('resize', measure)
+    const t = window.setTimeout(measure, 60)
+    const t2 = window.setTimeout(measure, 180)
+    // If slot never measures, still dismiss intro quickly
+    const noPath = window.setTimeout(() => {
+      setPath((prev) => {
+        if (prev) return prev
+        const cx = window.innerWidth / 2
+        const cy = window.innerHeight / 2
+        return {
+          fromX: cx - baseW / 2,
+          fromY: cy - baseH / 2,
+          toX: cx - baseW / 2,
+          toY: cy - baseH / 2,
+          nearScale: 2.1,
+          landScale: 0.55,
+        }
+      })
+    }, 400)
+    const failSafe = window.setTimeout(done, 3400)
+
     return () => {
+      cancelled = true
       window.cancelAnimationFrame(id)
       window.clearTimeout(t)
       window.clearTimeout(t2)
+      window.clearTimeout(noPath)
       window.clearTimeout(failSafe)
-      window.removeEventListener('resize', measure)
     }
-  }, [slotRef, baseW, baseH, onDone])
+    // intentionally omit baseH — avoid restarting timers when logo aspect loads
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [slotRef, baseW, onDone])
 
   return (
     <motion.div
