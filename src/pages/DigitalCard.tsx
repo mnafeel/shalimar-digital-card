@@ -13,6 +13,7 @@ import {
   downloadVCard,
   prepareContactVcf,
   contactVcfHref,
+  buildAndroidOpenVcfIntent,
   isAndroidPhone,
   isApplePhone,
   instagramHandle,
@@ -146,12 +147,13 @@ export default function DigitalCard() {
       })
   }
 
-  // iPhone + Android: real .vcf link — same open flow as tapping a contact file
-  const phoneVcfHref =
-    isAndroidPhone() || isApplePhone()
-      ? contactVcfHref(
-          typeof window !== 'undefined' ? window.location.origin : 'https://digitalcard.shalimarfashions.com',
-        )
+  // iPhone: open .vcf in Safari. Android: Intent VIEW into Contacts (never a .vcf http link).
+  const origin =
+    typeof window !== 'undefined' ? window.location.origin : 'https://digitalcard.shalimarfashions.com'
+  const phoneSaveHref = isAndroidPhone()
+    ? buildAndroidOpenVcfIntent(data, origin)
+    : isApplePhone()
+      ? contactVcfHref(origin)
       : ''
 
   return (
@@ -230,8 +232,8 @@ export default function DigitalCard() {
                 <small>Chat</small>
               </span>
             </a>
-            {phoneVcfHref ? (
-              <a className="folio-spot folio-spot--save" href={phoneVcfHref}>
+            {phoneSaveHref ? (
+              <a className="folio-spot folio-spot--save" href={phoneSaveHref}>
                 <IconContact />
                 <span>
                   <strong>Save to Contacts</strong>

@@ -280,15 +280,74 @@ export function isApplePhone(): boolean {
   return isAppleTouchDevice()
 }
 
-/** Same-origin .vcf URL — opening this is what triggers the system Save Contact sheet. */
+/** Same-origin .vcf URL — iPhone opens Save Contact from this. Do not use on Android (Chrome downloads). */
 export function contactVcfHref(origin = typeof window !== 'undefined' ? window.location.origin : ''): string {
   const base = (origin || 'https://digitalcard.shalimarfashions.com').replace(/\/$/, '')
   return `${base}/contact.vcf`
 }
 
+/** Prefill Add Contact — used if VCF VIEW cannot be handed to Contacts. */
+function buildAndroidInsertContactIntent(data: CardData): string {
+  const name = (data.ownerName || data.brandName || 'Shalimar Fashions').trim()
+  const phone = contactDisplayPhone(data)
+  const email = (data.email || '').trim()
+  const company = (data.brandName || '').trim()
+  const jobTitle = (data.designation || '').trim()
+  const postal = (data.address || '').trim()
+
+  const extras = [
+    `S.name=${encodeURIComponent(name)}`,
+    phone ? `S.phone=${encodeURIComponent(phone)}` : '',
+    email ? `S.email=${encodeURIComponent(email)}` : '',
+    company ? `S.company=${encodeURIComponent(company)}` : '',
+    jobTitle ? `S.job_title=${encodeURIComponent(jobTitle)}` : '',
+    postal ? `S.postal=${encodeURIComponent(postal)}` : '',
+  ].filter(Boolean)
+
+  return (
+    `intent://vnd.android.cursor.dir/raw_contact/#Intent;` +
+    `action=android.intent.action.INSERT;` +
+    `type=vnd.android.cursor.dir/raw_contact;` +
+    `${extras.join(';')};end`
+  )
+}
+
+/**
+ * Android: hand the hosted .vcf to Contacts (ACTION_VIEW) — same as opening the file
+ * from Downloads (name + Save / Google account sheet). Never link to the .vcf in Chrome;
+ * that only downloads.
+ *
+ * If VIEW cannot run, fall back to INSERT (still opens saveable contact UI — not a download).
+ */
+export function buildAndroidOpenVcfIntent(
+  data: CardData,
+  origin = typeof window !== 'undefined' ? window.location.origin : '',
+): string {
+  // Firefox does not support Chrome intent: URLs
+  if (typeof navigator !== 'undefined' && /Firefox/i.test(navigator.userAgent)) {
+    return buildAndroidInsertContactIntent(data)
+  }
+
+  const base = (origin || 'https://digitalcard.shalimarfashions.com').replace(/\/$/, '')
+  // Static file on the host — Contacts fetches this itself (not via Chrome download)
+  const vcf = new URL('/shalimar-fashions.vcf', `${base}/`)
+  const scheme = vcf.protocol.replace(':', '') || 'https'
+  const insertFallback = encodeURIComponent(buildAndroidInsertContactIntent(data))
+
+  return (
+    `intent://${vcf.host}${vcf.pathname}#Intent;` +
+    `scheme=${scheme};` +
+    `action=android.intent.action.VIEW;` +
+    `type=text/x-vcard;` +
+    `S.browser_fallback_url=${insertFallback};` +
+    `end`
+  )
+}
+
 /**
  * Open the system Save Contact UI (same as opening a .vcf file).
- * Phone: navigate to hosted .vcf with text/vcard — iPhone & Android Contacts sheet.
+ * iPhone: navigate to .vcf (Safari shows Save Contact).
+ * Android: Intent VIEW of the .vcf into Contacts (Chrome must not download the file).
  * Desktop: save dialog / Downloads folder.
  */
 export async function downloadVCard(
@@ -298,9 +357,14 @@ export async function downloadVCard(
     .replace(/\s+/g, '-')
     .toLowerCase()}.vcf`
 
-  if (isAndroidDevice() || isAppleTouchDevice()) {
+  // Android: never assign a .vcf URL — Chrome will only download it
+  if (isAndroidDevice()) {
+    window.location.assign(buildAndroidOpenVcfIntent(data, window.location.origin))
+    return 'opened'
+  }
+
+  if (isAppleTouchDevice()) {
     await prepareContactVcf(data)
-    // Exact same path on iPhone and Android: open the .vcf so Save Contact slides up
     window.location.assign(contactVcfHref())
     return 'opened'
   }
