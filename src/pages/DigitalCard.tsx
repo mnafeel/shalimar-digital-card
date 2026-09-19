@@ -11,6 +11,8 @@ import {
   loadCardData,
   fetchCardDataCloud,
   downloadVCard,
+  buildAndroidContactIntentUrl,
+  isAndroidPhone,
   instagramHandle,
   mailHref,
   telHref,
@@ -127,15 +129,18 @@ export default function DigitalCard() {
           setSaveNote('')
           return
         }
-        if (result === 'opened' || result === 'shared') setSaveNote('Add contact')
+        if (result === 'shared') setSaveNote('Pick Contacts')
+        else if (result === 'opened') setSaveNote('Add contact')
         else setSaveNote('Saved')
-        window.setTimeout(() => setSaveNote(''), 2200)
+        window.setTimeout(() => setSaveNote(''), 2800)
       })
       .catch(() => {
         setSaveNote('Try again')
         window.setTimeout(() => setSaveNote(''), 2200)
       })
   }
+
+  const androidSaveHref = isAndroidPhone() ? buildAndroidContactIntentUrl(data) : ''
 
   return (
     <div className="folio">
@@ -213,13 +218,34 @@ export default function DigitalCard() {
                 <small>Chat</small>
               </span>
             </a>
-            <button type="button" className="folio-spot folio-spot--save" onClick={saveContact}>
-              <IconContact />
-              <span>
-                <strong>Save to Contacts</strong>
-                <small>{saveNote || 'Phone book'}</small>
-              </span>
-            </button>
+            {androidSaveHref ? (
+              <a
+                className="folio-spot folio-spot--save"
+                href={androidSaveHref}
+                onClick={(event) => {
+                  // Prefer handing the contact to the Contacts app via the system sheet.
+                  // Intent href remains as fallback when Web Share isn’t available.
+                  if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
+                    event.preventDefault()
+                    saveContact()
+                  }
+                }}
+              >
+                <IconContact />
+                <span>
+                  <strong>Save to Contacts</strong>
+                  <small>{saveNote || 'Add to phone'}</small>
+                </span>
+              </a>
+            ) : (
+              <button type="button" className="folio-spot folio-spot--save" onClick={saveContact}>
+                <IconContact />
+                <span>
+                  <strong>Save to Contacts</strong>
+                  <small>{saveNote || 'Phone book'}</small>
+                </span>
+              </button>
+            )}
             <button
               type="button"
               className="folio-spot folio-spot--share"

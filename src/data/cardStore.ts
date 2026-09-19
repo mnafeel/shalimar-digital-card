@@ -262,27 +262,18 @@ function stashVcardInWorker(worker: ServiceWorker, vcard: string): Promise<void>
   })
 }
 
-function launchHref(url: string): void {
-  // Keep this synchronous with the tap so Chrome allows the Intent
-  window.location.href = url
+export function isAndroidPhone(): boolean {
+  return isAndroidDevice()
 }
 
-/**
- * Android: open the Contacts “Add contact” screen with fields pre-filled.
- * Navigating to a .vcf downloads the file on Chrome — Intent INSERT does not.
- * Must run inside the tap gesture (no awaits before this).
- */
-function openAndroidAddContact(data: CardData): void {
+/** Build Chrome/Samsung Intent URL that opens the system Add Contact form. */
+export function buildAndroidContactIntentUrl(data: CardData): string {
   const name = (data.ownerName || data.brandName || 'Shalimar Fashions').trim()
   const phone = contactDisplayPhone(data)
   const email = (data.email || '').trim()
   const company = (data.brandName || '').trim()
   const jobTitle = (data.designation || '').trim()
   const postal = (data.address || '').trim()
-  const notes = [data.tagline, data.website, data.instagram, data.facebook]
-    .map((v) => (v || '').trim())
-    .filter(Boolean)
-    .join('\n')
 
   const extras = [
     `S.name=${encodeURIComponent(name)}`,
@@ -291,23 +282,60 @@ function openAndroidAddContact(data: CardData): void {
     company ? `S.company=${encodeURIComponent(company)}` : '',
     jobTitle ? `S.job_title=${encodeURIComponent(jobTitle)}` : '',
     postal ? `S.postal=${encodeURIComponent(postal)}` : '',
-    notes ? `S.notes=${encodeURIComponent(notes)}` : '',
   ].filter(Boolean)
 
-  // Chrome / Samsung Internet: opens system Add Contact with extras filled in
-  const intentUrl =
-    `intent://vnd.android.cursor.dir/raw_contact/#Intent;` +
-    `action=android.intent.action.INSERT;` +
-    `type=vnd.android.cursor.dir/raw_contact;` +
-    extras.join(';') +
-    `;end`
+  // Common-intents form (Contacts.CONTENT_TYPE) — opens Add contact with fields filled
+  return (
+    `intent:#Intent;action=android.intent.action.INSERT;` +
+    `type=vnd.android.cursor.dir/contact;` +
+    `${extras.join(';')};end`
+  )
+}
 
-  launchHref(intentUrl)
+function clickAnchor(href: string): void {
+  const a = document.createElement('a')
+  a.href = href
+  a.setAttribute('aria-hidden', 'true')
+  a.style.cssText = 'position:fixed;left:0;top:0;width:1px;height:1px;opacity:0'
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+}
+
+/** Share a .vcf so Android can hand it to Contacts (Add contact UI). */
+async function shareVCardToContacts(
+  data: CardData,
+): Promise<'shared' | 'cancelled' | 'unavailable'> {
+  if (typeof navigator === 'undefined' || typeof navigator.share !== 'function') {
+    return 'unavailable'
+  }
+
+  const vcard = buildVCard(data)
+  const displayName = (data.ownerName || data.brandName || 'Shalimar Fashions').trim()
+  const filename = `${displayName.replace(/\s+/g, '-')}.vcf`
+  const files = [
+    new File([vcard], filename, { type: 'text/x-vcard' }),
+    new File([vcard], filename, { type: 'text/vcard' }),
+    new File([vcard], filename, { type: 'text/vcard;charset=utf-8' }),
+  ]
+
+  for (const file of files) {
+    try {
+      if (!navigator.canShare?.({ files: [file] })) continue
+      await navigator.share({ files: [file], title: displayName })
+      return 'shared'
+    } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') return 'cancelled'
+    }
+  }
+
+  return 'unavailable'
 }
 
 /**
  * Phone: open the system Create / Add Contact screen with fields pre-filled.
- * Android → Contacts Intent (not .vcf download). iPhone → hosted .vcf sheet.
+ * Android: Intent Add-contact form, with share-to-Contacts fallback (not a file download).
+ * iPhone: hosted .vcf contact sheet.
  * Desktop: save dialog / Downloads folder.
  */
 export async function downloadVCard(
@@ -317,9 +345,15 @@ export async function downloadVCard(
     .replace(/\s+/g, '-')
     .toLowerCase()}.vcf`
 
-  // Android first — must stay synchronous with the tap (no SW await)
   if (isAndroidDevice()) {
-    openAndroidAddContact(data)
+    // Chrome often blocks Contacts INSERT Intents; sharing the contact file lets the
+    // phone open Add Contact (pick Contacts in the sheet — not a Downloads save).
+    const shared = await shareVCardToContacts(data)
+    if (shared === 'shared') return 'shared'
+    if (shared === 'cancelled') return 'cancelled'
+
+    // Fallback: system Add Contact Intent (works on some browsers/OEMs)
+    clickAnchor(buildAndroidContactIntentUrl(data))
     return 'opened'
   }
 
