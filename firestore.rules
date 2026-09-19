@@ -1,0 +1,33 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Permanent visitor log — create + read only. Never update or delete.
+    match /visits/{visitId} {
+      allow read: if true;
+      allow create: if request.resource.data.keys().hasAll([
+          'at', 'path', 'device', 'browser', 'os', 'screen', 'language'
+        ])
+        && request.resource.data.at is string
+        && request.resource.data.device is string
+        && request.resource.data.browser is string;
+      allow update, delete: if false;
+    }
+
+    // Shared card profile — readable everywhere; writable from admin studio
+    match /config/{docId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // Published share links (campaign tracking)
+    match /shareLinks/{linkId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    match /publishers/{userId} {
+      allow read: if true;
+      allow write: if true;
+    }
+  }
+}

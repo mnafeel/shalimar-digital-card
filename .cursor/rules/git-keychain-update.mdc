@@ -1,0 +1,15 @@
+---
+description: Git updates must always unlock Keychain with a password first
+alwaysApply: true
+---
+
+# Secure Git Update (Keychain password required)
+
+When the user asks to **git update**, **commit and push**, or **push**:
+
+1. **Never** run `git push` / `git pull` / credential-using git network commands silently.
+2. **Always** unlock the macOS login Keychain first so a password dialog appears:
+   - Prefer: `./scripts/git-update.sh "commit message"`
+   - Or manually: `security lock-keychain ~/Library/Keychains/login.keychain-db` then `security unlock-keychain ~/Library/Keychains/login.keychain-db`, then git with this repo’s `credential.helper` gate.
+3. Do **not** bypass with cached credentials, `--no-verify`, or alternate remotes that skip the gate.
+4. This repo’s local `credential.helper` is `scripts/git-credential-keychain-gate` — keep it that way.

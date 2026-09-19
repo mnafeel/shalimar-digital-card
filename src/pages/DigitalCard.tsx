@@ -9,6 +9,7 @@ import {
 } from 'framer-motion'
 import {
   loadCardData,
+  fetchCardDataCloud,
   downloadVCard,
   instagramHandle,
   mailHref,
@@ -16,6 +17,8 @@ import {
   whatsappHref,
   type CardData,
 } from '../data/cardStore'
+import { recordShareLinkOpen } from '../data/shareLinksStore'
+import { trackPageVisit } from '../data/visitStore'
 import { shareDigitalCard } from '../utils/shareCardImage'
 import './DigitalCard.css'
 
@@ -49,7 +52,17 @@ export default function DigitalCard() {
   }, [])
 
   useEffect(() => {
-    const refresh = () => setData(loadCardData())
+    const params = new URLSearchParams(window.location.search)
+    const slug = params.get('s') || ''
+    if (slug) recordShareLinkOpen(slug)
+    void trackPageVisit({ shareSlug: slug || undefined })
+  }, [])
+
+  useEffect(() => {
+    void fetchCardDataCloud().then(setData)
+    const refresh = () => {
+      void fetchCardDataCloud().then(setData)
+    }
     window.addEventListener('storage', refresh)
     window.addEventListener('sf-card-updated', refresh)
     return () => {

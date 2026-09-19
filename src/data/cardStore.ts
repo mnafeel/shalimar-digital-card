@@ -1,3 +1,5 @@
+import { firestoreGet, firestoreSet } from '../lib/firebase'
+
 export interface ExperienceMoment {
   id: string
   title: string
@@ -64,21 +66,27 @@ const STORAGE_KEY = 'sf-digital-card-data-v8'
 const AUTH_KEY = 'sf-digital-card-auth'
 const ADMIN_PASSWORD = 'shalimar2024'
 
+function mergeCard(parsed: Partial<CardData> | null | undefined): CardData {
+  if (!parsed) return structuredClone(DEFAULT_CARD)
+  return {
+    ...DEFAULT_CARD,
+    ...parsed,
+    brandName: parsed.brandName || DEFAULT_CARD.brandName,
+    ownerName: parsed.ownerName || DEFAULT_CARD.ownerName,
+    logoVariants: parsed.logoVariants?.length
+      ? parsed.logoVariants
+      : [...DEFAULT_CARD.logoVariants],
+    experience: parsed.experience?.length
+      ? parsed.experience
+      : structuredClone(DEFAULT_CARD.experience),
+  }
+}
+
 export function loadCardData(): CardData {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (!raw) return structuredClone(DEFAULT_CARD)
-    const parsed = JSON.parse(raw) as Partial<CardData>
-    return {
-      ...DEFAULT_CARD,
-      ...parsed,
-      logoVariants: parsed.logoVariants?.length
-        ? parsed.logoVariants
-        : [...DEFAULT_CARD.logoVariants],
-      experience: parsed.experience?.length
-        ? parsed.experience
-        : structuredClone(DEFAULT_CARD.experience),
-    }
+    return mergeCard(JSON.parse(raw) as Partial<CardData>)
   } catch {
     return structuredClone(DEFAULT_CARD)
   }
@@ -86,11 +94,39 @@ export function loadCardData(): CardData {
 
 export function saveCardData(data: CardData): void {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
+  void persistCardDataCloud(data)
 }
 
 export function resetCardData(): CardData {
   localStorage.removeItem(STORAGE_KEY)
-  return structuredClone(DEFAULT_CARD)
+  const fresh = structuredClone(DEFAULT_CARD)
+  void persistCardDataCloud(fresh)
+  return fresh
+}
+
+/** Load shared card from Firestore so every browser shows the same brand details. */
+export async function fetchCardDataCloud(): Promise<CardData> {
+  try {
+    const remote = await firestoreGet('config/card')
+    if (remote) {
+      const merged = mergeCard(remote as Partial<CardData>)
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(merged))
+      return merged
+    }
+    await firestoreSet('config/card', { ...DEFAULT_CARD } as unknown as Record<string, unknown>)
+    return structuredClone(DEFAULT_CARD)
+  } catch (err) {
+    console.warn('Cloud card load failed; using local/defaults', err)
+    return loadCardData()
+  }
+}
+
+async function persistCardDataCloud(data: CardData): Promise<void> {
+  try {
+    await firestoreSet('config/card', { ...data } as unknown as Record<string, unknown>)
+  } catch (err) {
+    console.warn('Cloud card save failed', err)
+  }
 }
 
 export function verifyAdminPassword(password: string): boolean {
