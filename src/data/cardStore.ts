@@ -262,7 +262,7 @@ function stashVcardInWorker(worker: ServiceWorker, vcard: string): Promise<void>
   })
 }
 
-/** Keep /contact.vcf warm so Android can open it like a downloaded contact file. */
+/** Keep /contact.vcf warm so phones open the real contact-file save UI. */
 export async function prepareContactVcf(data: CardData): Promise<void> {
   try {
     const worker = await ensureContactServiceWorker()
@@ -276,30 +276,19 @@ export function isAndroidPhone(): boolean {
   return isAndroidDevice()
 }
 
-/**
- * Android Intent: VIEW the hosted .vcf — same path as opening a downloaded contact file
- * (Contacts opens with name/phone/email filled, ready to save).
- */
-export function buildAndroidVCardViewIntent(origin = typeof window !== 'undefined' ? window.location.origin : ''): string {
-  const base = (origin || 'https://digitalcard.shalimarfashions.com').replace(/\/$/, '')
-  const vcfUrl = new URL('/contact.vcf', `${base}/`)
-  const scheme = vcfUrl.protocol.replace(':', '') || 'https'
-  const fallback = encodeURIComponent(vcfUrl.href)
+export function isApplePhone(): boolean {
+  return isAppleTouchDevice()
+}
 
-  return (
-    `intent://${vcfUrl.host}${vcfUrl.pathname}#Intent;` +
-    `scheme=${scheme};` +
-    `action=android.intent.action.VIEW;` +
-    `type=text/x-vcard;` +
-    `S.browser_fallback_url=${fallback};` +
-    `end`
-  )
+/** Same-origin .vcf URL — opening this is what triggers the system Save Contact sheet. */
+export function contactVcfHref(origin = typeof window !== 'undefined' ? window.location.origin : ''): string {
+  const base = (origin || 'https://digitalcard.shalimarfashions.com').replace(/\/$/, '')
+  return `${base}/contact.vcf`
 }
 
 /**
- * Phone: open the system Create / Add Contact screen with fields pre-filled.
- * Android: VIEW the .vcf in Contacts (same as opening a downloaded contact).
- * iPhone: hosted .vcf contact sheet.
+ * Open the system Save Contact UI (same as opening a .vcf file).
+ * Phone: navigate to hosted .vcf with text/vcard — iPhone & Android Contacts sheet.
  * Desktop: save dialog / Downloads folder.
  */
 export async function downloadVCard(
@@ -309,25 +298,10 @@ export async function downloadVCard(
     .replace(/\s+/g, '-')
     .toLowerCase()}.vcf`
 
-  if (isAndroidDevice()) {
+  if (isAndroidDevice() || isAppleTouchDevice()) {
     await prepareContactVcf(data)
-    // Prefer the same “open this contact file” flow the phone uses for Downloads
-    window.location.assign(buildAndroidVCardViewIntent())
-    return 'opened'
-  }
-
-  if (isAppleTouchDevice()) {
-    const vcard = buildVCard(data)
-    const origin = window.location.origin
-    const worker = await ensureContactServiceWorker()
-
-    if (worker) {
-      await stashVcardInWorker(worker, vcard)
-      window.location.assign(`${origin}/contact.vcf`)
-      return 'opened'
-    }
-
-    window.location.assign(`${origin}/shalimar-fashions.vcf`)
+    // Exact same path on iPhone and Android: open the .vcf so Save Contact slides up
+    window.location.assign(contactVcfHref())
     return 'opened'
   }
 

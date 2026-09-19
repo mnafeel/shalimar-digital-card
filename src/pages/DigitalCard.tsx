@@ -12,8 +12,9 @@ import {
   fetchCardDataCloud,
   downloadVCard,
   prepareContactVcf,
-  buildAndroidVCardViewIntent,
+  contactVcfHref,
   isAndroidPhone,
+  isApplePhone,
   instagramHandle,
   mailHref,
   telHref,
@@ -74,7 +75,7 @@ export default function DigitalCard() {
     }
   }, [])
 
-  // Preload contact.vcf so Android can open it like a downloaded contact file
+  // Preload contact.vcf so tap opens the system Save Contact sheet immediately
   useEffect(() => {
     void prepareContactVcf(data)
   }, [data])
@@ -145,12 +146,13 @@ export default function DigitalCard() {
       })
   }
 
-  // Real link to open contact.vcf in Contacts (same as opening a downloaded .vcf)
-  const androidSaveHref = isAndroidPhone()
-    ? buildAndroidVCardViewIntent(
-        typeof window !== 'undefined' ? window.location.origin : 'https://digitalcard.shalimarfashions.com',
-      )
-    : ''
+  // iPhone + Android: real .vcf link — same open flow as tapping a contact file
+  const phoneVcfHref =
+    isAndroidPhone() || isApplePhone()
+      ? contactVcfHref(
+          typeof window !== 'undefined' ? window.location.origin : 'https://digitalcard.shalimarfashions.com',
+        )
+      : ''
 
   return (
     <div className="folio">
@@ -228,12 +230,12 @@ export default function DigitalCard() {
                 <small>Chat</small>
               </span>
             </a>
-            {androidSaveHref ? (
-              <a className="folio-spot folio-spot--save" href={androidSaveHref}>
+            {phoneVcfHref ? (
+              <a className="folio-spot folio-spot--save" href={phoneVcfHref}>
                 <IconContact />
                 <span>
                   <strong>Save to Contacts</strong>
-                  <small>Open & save</small>
+                  <small>Save contact</small>
                 </span>
               </a>
             ) : (

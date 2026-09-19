@@ -1,6 +1,19 @@
-/* Serve contact.vcf with text/x-vcard so phones open it in Contacts (same as a downloaded .vcf). */
-const CACHE = 'sf-contact-vcard-v2'
+/* Serve contact.vcf as text/vcard so Android/iPhone open the Save Contact sheet
+   (same UI as opening a downloaded .vcf — name + Save, account picker on Samsung). */
+const CACHE = 'sf-contact-vcard-v3'
 const VCARD_PATH = '/contact.vcf'
+
+function vcardResponse(body: string): Response {
+  return new Response(body, {
+    headers: {
+      // text/vcard is what Android Chrome uses to open Contacts import (not a plain download)
+      'Content-Type': 'text/vcard; charset=utf-8',
+      'Content-Disposition': 'inline; filename="Shalimar-Fashions.vcf"',
+      'Cache-Control': 'no-store',
+      'X-Content-Type-Options': 'nosniff',
+    },
+  })
+}
 
 self.addEventListener('install', (event) => {
   self.skipWaiting()
@@ -25,18 +38,7 @@ self.addEventListener('message', (event) => {
   event.waitUntil(
     caches
       .open(CACHE)
-      .then((cache) =>
-        cache.put(
-          VCARD_PATH,
-          new Response(data.vcard, {
-            headers: {
-              'Content-Type': 'text/x-vcard; charset=utf-8',
-              'Content-Disposition': 'inline; filename="Shalimar-Fashions.vcf"',
-              'Cache-Control': 'no-store',
-            },
-          }),
-        ),
-      )
+      .then((cache) => cache.put(VCARD_PATH, vcardResponse(data.vcard)))
       .then(() => {
         reply?.postMessage({ ok: true })
       })
@@ -48,6 +50,7 @@ self.addEventListener('message', (event) => {
 
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url)
+  // Only /contact.vcf — do not intercept /shalimar-fashions.vcf (used as network fallback)
   if (url.pathname !== VCARD_PATH) return
 
   event.respondWith(
@@ -60,12 +63,7 @@ self.addEventListener('fetch', (event) => {
         const res = await fetch('/shalimar-fashions.vcf', { cache: 'no-store' })
         if (res.ok) {
           const body = await res.text()
-          return new Response(body, {
-            headers: {
-              'Content-Type': 'text/x-vcard; charset=utf-8',
-              'Content-Disposition': 'inline; filename="Shalimar-Fashions.vcf"',
-            },
-          })
+          return vcardResponse(body)
         }
       } catch {
         /* ignore */
