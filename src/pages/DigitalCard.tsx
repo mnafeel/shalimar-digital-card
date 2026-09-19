@@ -179,10 +179,6 @@ export default function DigitalCard() {
             <p className="folio__kicker">{data.accentNote}</p>
             <TypedBrand active={ready} reduce={!!reduce} />
             <p className="folio__tag">{data.tagline}</p>
-            <a className="folio__card-link" href={cardUrl || 'https://digitalcard.shalimarfashions.com'}>
-              <span className="folio__card-link-label">Digital visiting card</span>
-              <span className="folio__card-link-url">digitalcard.shalimarfashions.com</span>
-            </a>
             {data.about ? <p className="folio__about">{data.about}</p> : null}
           </motion.header>
 
@@ -226,7 +222,7 @@ export default function DigitalCard() {
               <IconShare />
               <span>
                 <strong>Share</strong>
-                <small>{shareNote || 'Visiting card'}</small>
+                <small>{shareNote || 'Digital card'}</small>
               </span>
             </button>
           </motion.section>
@@ -583,8 +579,8 @@ function CinematicIntro({
 }
 
 function TypedBrand({ active, reduce }: { active: boolean; reduce: boolean }) {
-  const fullMain = 'Shalimar'
-  const fullSub = 'Fashions'
+  const fullMain = 'SHALIMAR'
+  const fullSub = 'FASHIONS'
   const [main, setMain] = useState(reduce ? fullMain : '')
   const [sub, setSub] = useState(reduce ? fullSub : '')
   const [phase, setPhase] = useState<'main' | 'sub' | 'done'>(reduce ? 'done' : 'main')
@@ -608,7 +604,7 @@ function TypedBrand({ active, reduce }: { active: boolean; reduce: boolean }) {
         window.clearInterval(mainTimer)
         setPhase('sub')
       }
-    }, 78)
+    }, 70)
 
     return () => window.clearInterval(mainTimer)
   }, [active, reduce])
@@ -623,7 +619,7 @@ function TypedBrand({ active, reduce }: { active: boolean; reduce: boolean }) {
         window.clearInterval(subTimer)
         setPhase('done')
       }
-    }, 62)
+    }, 55)
     return () => window.clearInterval(subTimer)
   }, [phase, active, reduce])
 

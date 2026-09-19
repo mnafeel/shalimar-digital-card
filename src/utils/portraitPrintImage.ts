@@ -179,9 +179,9 @@ async function renderMonoPortrait(data: CardData, cardUrl: string): Promise<Blob
   letter.letterSpacing = '0'
 
   ctx.fillStyle = '#1c1816'
-  ctx.font = '600 48px Cormorant Garamond, Fraunces, Georgia, serif'
-  letter.letterSpacing = '0.02em'
-  ctx.fillText(data.brandName || 'Shalimar Fashions', W / 2, 420)
+  ctx.font = '700 42px Montserrat, Figtree, system-ui, sans-serif'
+  letter.letterSpacing = '0.12em'
+  ctx.fillText((data.brandName || 'SHALIMAR').toUpperCase(), W / 2, 420)
   letter.letterSpacing = '0'
 
   ctx.fillStyle = 'rgba(28, 24, 20, 0.55)'
@@ -342,9 +342,9 @@ async function renderColorPortrait(data: CardData, cardUrl: string): Promise<Blo
 
   ty += 32
   ctx.fillStyle = '#2a2724'
-  ctx.font = '600 28px Cormorant Garamond, Fraunces, Georgia, serif'
-  letter.letterSpacing = '0.02em'
-  ctx.fillText(data.brandName || 'Shalimar Fashions', W / 2, ty)
+  ctx.font = '700 26px Montserrat, Figtree, system-ui, sans-serif'
+  letter.letterSpacing = '0.08em'
+  ctx.fillText((data.brandName || 'Shalimar Fashions').toUpperCase(), W / 2, ty)
   letter.letterSpacing = '0'
 
   ty += 34

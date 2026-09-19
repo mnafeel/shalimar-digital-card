@@ -139,39 +139,38 @@
 
 .folio__brand {
   display: grid;
-  gap: 0.08rem;
+  gap: 0.16rem;
   justify-items: center;
 }
 
 .folio__brand-main {
-  font-family: 'Cormorant Garamond', 'Fraunces', Georgia, serif;
-  font-size: clamp(2.05rem, 8.5vw, 2.85rem);
-  font-weight: 600;
-  font-style: italic;
-  letter-spacing: 0.02em;
-  text-transform: none;
-  line-height: 1.02;
+  font-family: 'Montserrat', 'Figtree', system-ui, sans-serif;
+  font-size: clamp(1.2rem, 5.5vw, 1.8rem);
+  font-weight: 800;
+  letter-spacing: clamp(0.1em, 1.2vw, 0.18em);
+  text-transform: uppercase;
+  line-height: 1.05;
   color: var(--ink);
-  min-height: 1.1em;
+  min-height: 1.15em;
 }
 
 .folio__brand-sub {
   font-family: 'Montserrat', 'Figtree', system-ui, sans-serif;
-  font-size: clamp(0.72rem, 2.6vw, 0.88rem);
-  font-weight: 600;
-  letter-spacing: 0.34em;
-  text-transform: none;
-  color: var(--wine-deep);
-  padding-left: 0.28em;
-  min-height: 1.15em;
+  font-size: clamp(0.56rem, 2.2vw, 0.74rem);
+  font-weight: 500;
+  letter-spacing: clamp(0.28em, 2.2vw, 0.5em);
+  text-transform: uppercase;
+  color: var(--mute);
+  padding-left: 0.06em;
+  min-height: 1.1em;
 }
 
 .folio__caret {
   display: inline-block;
   width: 0.08em;
-  height: 0.75em;
+  height: 0.85em;
   margin-left: 0.08em;
-  vertical-align: -0.02em;
+  vertical-align: -0.05em;
   background: var(--wine);
   animation: folioCaret 0.85s steps(1) infinite;
 }
@@ -188,52 +187,10 @@
 }
 
 .folio__tag {
-  margin-top: 0.55rem;
-  font-family: 'Figtree', system-ui, sans-serif;
-  font-size: clamp(0.82rem, 2.6vw, 0.95rem);
-  font-weight: 500;
+  margin-top: 0.45rem;
+  font-size: clamp(0.8rem, 2.6vw, 0.92rem);
   color: var(--mute);
-  line-height: 1.4;
-}
-
-.folio__card-link {
-  margin: 0.85rem auto 0;
-  display: grid;
-  gap: 0.18rem;
-  justify-items: center;
-  width: fit-content;
-  max-width: 100%;
-  padding: 0.55rem 0.9rem 0.6rem;
-  border-radius: 12px;
-  background: linear-gradient(180deg, rgba(255, 252, 248, 0.95), rgba(243, 235, 226, 0.65));
-  border: 1px solid rgba(155, 129, 104, 0.22);
-  text-decoration: none;
-  color: inherit;
-  transition: border-color 0.25s ease, transform 0.25s var(--ease);
-}
-
-.folio__card-link:hover {
-  border-color: rgba(155, 129, 104, 0.42);
-  transform: translateY(-1px);
-}
-
-.folio__card-link-label {
-  font-family: 'Montserrat', 'Figtree', system-ui, sans-serif;
-  font-size: 0.58rem;
-  font-weight: 600;
-  letter-spacing: 0.22em;
-  text-transform: uppercase;
-  color: var(--wine);
-}
-
-.folio__card-link-url {
-  font-family: 'Cormorant Garamond', 'Fraunces', Georgia, serif;
-  font-size: clamp(0.95rem, 3.2vw, 1.12rem);
-  font-weight: 500;
-  font-style: italic;
-  letter-spacing: 0.03em;
-  color: var(--ink);
-  line-height: 1.2;
+  line-height: 1.35;
 }
 
 .folio__about {
@@ -348,15 +305,14 @@
 }
 
 .folio__visit-head h2 {
-  font-family: 'Cormorant Garamond', 'Fraunces', Georgia, serif;
-  font-size: clamp(1.25rem, 4vw, 1.55rem);
-  font-weight: 600;
-  font-style: italic;
-  letter-spacing: 0.02em;
-  text-transform: none;
+  font-family: 'Montserrat', 'Figtree', system-ui, sans-serif;
+  font-size: clamp(0.82rem, 3.2vw, 1.08rem);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
   margin-bottom: 0.3rem;
   color: var(--ink);
-  line-height: 1.25;
+  line-height: 1.3;
 }
 
 .folio__connect-grid {
@@ -792,14 +748,13 @@
   }
 
   .folio__brand-main {
-    font-size: clamp(2.6rem, 4vw, 3.4rem);
-    letter-spacing: 0.015em;
+    font-size: clamp(2rem, 3.2vw, 2.75rem);
+    letter-spacing: 0.14em;
   }
 
   .folio__brand-sub {
-    font-size: clamp(0.82rem, 1.15vw, 0.95rem);
-    letter-spacing: 0.38em;
-    padding-left: 0.2em;
+    font-size: clamp(0.78rem, 1.1vw, 0.9rem);
+    letter-spacing: 0.42em;
   }
 
   .folio__kicker {
@@ -811,13 +766,6 @@
     margin-top: 0.65rem;
     font-size: 1.05rem;
     max-width: 28rem;
-  }
-
-  .folio__card-link {
-    margin-left: 0;
-    margin-right: auto;
-    justify-items: start;
-    text-align: left;
   }
 
   .folio__about {
@@ -902,8 +850,8 @@
   }
 
   .folio__visit-head h2 {
-    font-size: 1.65rem;
-    letter-spacing: 0.015em;
+    font-size: 1.05rem;
+    letter-spacing: 0.08em;
   }
 
   .folio__visit-head p {
@@ -993,7 +941,7 @@
   }
 
   .folio__brand-main {
-    font-size: 3.35rem;
+    font-size: 3rem;
   }
 }
 
