@@ -168,50 +168,94 @@ export function instagramHandle(url: string): string {
 }
 
 export function buildVCard(data: CardData): string {
-  const phone = digitsOnly(data.phone)
-  const name = (data.ownerName || data.brandName).replace(/,/g, '\\,')
-  const org = data.brandName.replace(/,/g, '\\,')
+  const rawPhone = digitsOnly(data.phone)
+  let phone = ''
+  if (rawPhone) {
+    if (rawPhone.startsWith('91') && rawPhone.length >= 12) phone = `+${rawPhone}`
+    else if (rawPhone.length === 10) phone = `+91${rawPhone}`
+    else phone = rawPhone.startsWith('+') ? rawPhone : `+${rawPhone}`
+  }
+
+  const displayName = (data.ownerName || data.brandName || 'Shalimar Fashions').trim()
+  const org = (data.brandName || 'Shalimar Fashions').trim()
+  const esc = (value: string) =>
+    value
+      .replace(/\\/g, '\\\\')
+      .replace(/\n/g, '\\n')
+      .replace(/,/g, '\\,')
+      .replace(/;/g, '\\;')
+
+  const nameParts = displayName.split(/\s+/)
+  const given = nameParts[0] || displayName
+  const family = nameParts.length > 1 ? nameParts.slice(1).join(' ') : ''
+
   const lines = [
     'BEGIN:VCARD',
     'VERSION:3.0',
-    `N:;${name};;;`,
-    `FN:${name}`,
-    `ORG:${org}`,
-    `TITLE:${data.designation}`,
+    'PRODID:-//Shalimar Fashions//Digital Visiting Card//EN',
+    `N:${esc(family)};${esc(given)};;;`,
+    `FN:${esc(displayName)}`,
+    `ORG:${esc(org)}`,
+    data.designation ? `TITLE:${esc(data.designation)}` : '',
     phone ? `TEL;TYPE=CELL,VOICE:${phone}` : '',
-    data.email ? `EMAIL;TYPE=INTERNET:${data.email}` : '',
-    data.website ? `URL:${data.website}` : '',
-    data.address ? `ADR;TYPE=WORK:;;${data.address.replace(/,/g, '\\,')};;;;` : '',
-    data.instagram ? `URL;TYPE=Instagram:${data.instagram}` : '',
-    data.facebook ? `URL;TYPE=Facebook:${data.facebook}` : '',
-    data.mapLink ? `URL;TYPE=Map:${data.mapLink}` : '',
-    `NOTE:${(data.tagline || '').replace(/,/g, '\\,')}`,
+    data.email ? `EMAIL;TYPE=INTERNET:${esc(data.email)}` : '',
+    data.website ? `URL:${esc(data.website)}` : '',
+    data.address ? `ADR;TYPE=WORK:;;${esc(data.address)};;;;` : '',
+    data.instagram ? `item1.URL:${esc(data.instagram)}` : '',
+    data.instagram ? 'item1.X-ABLabel:Instagram' : '',
+    data.facebook ? `item2.URL:${esc(data.facebook)}` : '',
+    data.facebook ? 'item2.X-ABLabel:Facebook' : '',
+    data.mapLink ? `item3.URL:${esc(data.mapLink)}` : '',
+    data.mapLink ? 'item3.X-ABLabel:Map' : '',
+    data.tagline ? `NOTE:${esc(data.tagline)}` : '',
     'END:VCARD',
   ]
-  return lines.filter(Boolean).join('\r\n')
+
+  return `${lines.filter(Boolean).join('\r\n')}\r\n`
 }
 
-/** Saves contact on iPhone & Android without leaving a blank page */
-export async function downloadVCard(data: CardData): Promise<void> {
-  const vcard = buildVCard(data)
-  const filename = `${(data.brandName || 'shalimar').replace(/\s+/g, '-').toLowerCase()}.vcf`
-  const file = new File([vcard], filename, { type: 'text/vcard' })
+function isAppleTouchDevice(): boolean {
+  if (typeof navigator === 'undefined') return false
+  return (
+    /iPad|iPhone|iPod/i.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+  )
+}
 
-  // Prefer native share sheet → Add to Contacts (iOS / Android)
-  try {
-    if (typeof navigator !== 'undefined' && navigator.canShare?.({ files: [file] })) {
-      await navigator.share({
-        files: [file],
-        title: data.brandName,
-        text: `Save ${data.brandName} contact`,
-      })
-      return
-    }
-  } catch (err) {
-    if (err instanceof DOMException && err.name === 'AbortError') return
+function isAndroidDevice(): boolean {
+  return typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent)
+}
+
+function triggerVcfDownload(blob: Blob, filename: string): void {
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  a.rel = 'noopener'
+  a.style.display = 'none'
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  window.setTimeout(() => URL.revokeObjectURL(url), 4000)
+}
+
+/** Opens a vCard so iPhone/Android can Add to Contacts immediately. */
+function openVcfForContacts(vcard: string, filename: string): void {
+  const apple = isAppleTouchDevice()
+
+  if (apple) {
+    // data: URI is the most reliable way for Safari to show “Create New Contact”
+    const dataUri = `data:text/vcard;charset=utf-8,${encodeURIComponent(vcard)}`
+    const a = document.createElement('a')
+    a.href = dataUri
+    a.rel = 'noopener'
+    a.style.display = 'none'
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    return
   }
 
-  // Fallback: download .vcf in-place (never navigate — avoids blank screen)
   const blob = new Blob([vcard], { type: 'text/vcard;charset=utf-8' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
@@ -222,5 +266,41 @@ export async function downloadVCard(data: CardData): Promise<void> {
   document.body.appendChild(a)
   a.click()
   a.remove()
-  window.setTimeout(() => URL.revokeObjectURL(url), 2500)
+  window.setTimeout(() => URL.revokeObjectURL(url), 60_000)
+}
+
+/**
+ * Save to Contacts on iPhone & Android.
+ * Opens/downloads a .vcf so the phone’s Contacts app can import immediately.
+ */
+export async function downloadVCard(
+  data: CardData,
+): Promise<'opened' | 'shared' | 'downloaded' | 'cancelled'> {
+  const vcard = buildVCard(data)
+  const filename = `${(data.brandName || 'shalimar-fashions')
+    .replace(/\s+/g, '-')
+    .toLowerCase()}.vcf`
+  const blob = new Blob([vcard], { type: 'text/vcard;charset=utf-8' })
+  const file = new File([vcard], filename, { type: 'text/vcard' })
+  const apple = isAppleTouchDevice()
+  const android = isAndroidDevice()
+
+  // Mobile: open/download .vcf → system “Add to Contacts”
+  if (apple || android) {
+    openVcfForContacts(vcard, filename)
+    return 'opened'
+  }
+
+  // Desktop: share file if available, else download
+  try {
+    if (typeof navigator !== 'undefined' && navigator.canShare?.({ files: [file] })) {
+      await navigator.share({ files: [file], title: data.brandName })
+      return 'shared'
+    }
+  } catch (err) {
+    if (err instanceof DOMException && err.name === 'AbortError') return 'cancelled'
+  }
+
+  triggerVcfDownload(blob, filename)
+  return 'downloaded'
 }

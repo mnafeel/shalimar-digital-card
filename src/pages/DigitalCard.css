@@ -283,6 +283,11 @@
   color: var(--ink);
 }
 
+.folio-spot--save strong {
+  font-size: clamp(0.62rem, 2vw, 0.72rem);
+  letter-spacing: 0.01em;
+}
+
 .folio-spot--share {
   background: var(--blush);
   border-color: rgba(155, 129, 104, 0.14);

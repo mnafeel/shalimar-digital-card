@@ -120,14 +120,20 @@ export default function DigitalCard() {
   }
 
   const saveContact = async () => {
-    setSaveNote('Saving…')
+    setSaveNote('Opening…')
     try {
-      await downloadVCard(data)
-      setSaveNote('Done')
+      const result = await downloadVCard(data)
+      if (result === 'cancelled') {
+        setSaveNote('')
+        return
+      }
+      if (result === 'opened') setSaveNote('Add contact')
+      else if (result === 'shared') setSaveNote('Shared')
+      else setSaveNote('Downloaded')
     } catch {
       setSaveNote('Try again')
     }
-    window.setTimeout(() => setSaveNote(''), 1600)
+    window.setTimeout(() => setSaveNote(''), 2200)
   }
 
   return (
@@ -209,8 +215,8 @@ export default function DigitalCard() {
             <button type="button" className="folio-spot folio-spot--save" onClick={saveContact}>
               <IconSave />
               <span>
-                <strong>Save</strong>
-                <small>{saveNote || 'Contact'}</small>
+                <strong>Save to Contact</strong>
+                <small>{saveNote || 'Phone book'}</small>
               </span>
             </button>
             <button
