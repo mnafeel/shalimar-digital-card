@@ -1,0 +1,86 @@
+.ambient {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse 80% 50% at 10% -10%, rgba(122, 46, 61, 0.14), transparent 55%),
+    radial-gradient(ellipse 70% 45% at 100% 20%, rgba(196, 122, 106, 0.16), transparent 50%),
+    linear-gradient(165deg, #dfe4eb 0%, #ece7e2 42%, #e4e8ee 100%);
+}
+
+.ambient__orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(70px);
+  animation: softPulse 11s ease-in-out infinite;
+}
+
+.ambient__orb--a {
+  width: 280px;
+  height: 280px;
+  top: 8%;
+  left: -8%;
+  background: rgba(122, 46, 61, 0.18);
+}
+
+.ambient__orb--b {
+  width: 320px;
+  height: 320px;
+  top: 40%;
+  right: -16%;
+  background: rgba(196, 122, 106, 0.16);
+  animation-delay: -3.5s;
+}
+
+.ambient__orb--c {
+  width: 220px;
+  height: 220px;
+  bottom: 10%;
+  left: 30%;
+  background: rgba(90, 31, 44, 0.1);
+  animation-delay: -6s;
+}
+
+.ambient__mesh {
+  position: absolute;
+  inset: 0;
+  opacity: 0.22;
+  background-image:
+    linear-gradient(rgba(122, 46, 61, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(122, 46, 61, 0.05) 1px, transparent 1px);
+  background-size: 72px 72px;
+  mask-image: radial-gradient(ellipse at center, black 20%, transparent 72%);
+}
+
+.ambient__grain {
+  position: absolute;
+  inset: 0;
+  opacity: 0.035;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+.ambient__vignette {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at center, transparent 45%, rgba(40, 30, 35, 0.08) 100%);
+}
+
+@keyframes softPulse {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.9;
+    transform: scale(1.06);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ambient__orb {
+    animation: none;
+  }
+}

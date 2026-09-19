@@ -1,0 +1,27 @@
+.about {
+  margin-top: 3rem;
+}
+
+.about__text {
+  color: var(--ink-muted);
+  line-height: 1.75;
+  font-weight: 300;
+  font-size: 1rem;
+}
+
+.about__chips {
+  margin-top: 1.25rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.about__chips span {
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  padding: 0.5rem 0.85rem;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  color: var(--ink-muted);
+  background: rgba(255, 255, 255, 0.7);
+}

@@ -1,0 +1,77 @@
+.intro {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  background: #080706;
+  overflow: hidden;
+}
+
+.intro__bars {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.intro__bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 50%;
+  background: #050403;
+  transform-origin: center;
+}
+
+.intro__bar--top {
+  top: 0;
+  transform-origin: top;
+  background: linear-gradient(180deg, #050403 70%, rgba(5, 4, 3, 0.85));
+}
+
+.intro__bar--bottom {
+  bottom: 0;
+  transform-origin: bottom;
+  background: linear-gradient(0deg, #050403 70%, rgba(5, 4, 3, 0.85));
+}
+
+.intro__stage {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  gap: 1.1rem;
+  width: min(72vw, 360px);
+}
+
+.intro__bloom {
+  position: absolute;
+  width: 75%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle, rgba(206, 184, 156, 0.5), transparent 62%),
+    radial-gradient(circle, rgba(92, 56, 42, 0.45), transparent 70%);
+  filter: blur(28px);
+  z-index: 0;
+}
+
+.intro__logo {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: auto;
+  filter:
+    drop-shadow(0 18px 40px rgba(0, 0, 0, 0.6))
+    drop-shadow(0 0 28px rgba(206, 184, 156, 0.25));
+}
+
+.intro__title {
+  position: relative;
+  z-index: 1;
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.28em;
+  color: var(--champagne);
+  text-align: center;
+}

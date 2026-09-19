@@ -1,0 +1,103 @@
+.connect {
+  margin: 0.35rem 0 1.25rem;
+}
+
+.connect__row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.65rem;
+}
+
+.connect__btn {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 0.4rem;
+  padding: 0.85rem 0.4rem 0.75rem;
+  border-radius: 18px;
+  border: 1px solid rgba(206, 184, 156, 0.18);
+  background:
+    linear-gradient(160deg, rgba(255, 255, 255, 0.06), transparent 55%),
+    rgba(255, 255, 255, 0.03);
+  color: rgba(246, 239, 230, 0.88);
+  transition:
+    transform 0.28s var(--ease),
+    border-color 0.25s ease,
+    background 0.25s ease,
+    box-shadow 0.28s ease;
+}
+
+.connect__btn:hover,
+.connect__btn:focus-visible {
+  transform: translateY(-3px);
+  border-color: rgba(206, 184, 156, 0.42);
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.28);
+  outline: none;
+}
+
+.connect__icon {
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  color: var(--champagne-soft);
+  background: linear-gradient(145deg, rgba(92, 56, 42, 0.85), rgba(206, 184, 156, 0.18));
+  border: 1px solid rgba(206, 184, 156, 0.22);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    0 8px 18px rgba(0, 0, 0, 0.25);
+}
+
+.connect__icon svg {
+  width: 1.15rem;
+  height: 1.15rem;
+}
+
+.connect__label {
+  font-size: 0.62rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(246, 239, 230, 0.62);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 0 0.2rem;
+}
+
+.connect__btn--ig .connect__icon {
+  background: linear-gradient(145deg, #6e3f4f, #5c382a 55%, #9a7a55);
+  color: #f7f1e8;
+}
+
+.connect__btn--wa .connect__icon {
+  color: #9be7b4;
+}
+
+.connect__btn--fb .connect__icon {
+  color: #9db7ff;
+}
+
+.connect__btn--call .connect__icon {
+  color: #f0dfc0;
+}
+
+.connect__btn--map .connect__icon {
+  color: #e8d5b5;
+}
+
+@media (min-width: 720px) {
+  .connect__row {
+    grid-template-columns: repeat(6, 1fr);
+    gap: 0.7rem;
+  }
+
+  .connect__btn {
+    padding: 0.95rem 0.35rem 0.8rem;
+  }
+
+  .connect__label {
+    font-size: 0.6rem;
+  }
+}

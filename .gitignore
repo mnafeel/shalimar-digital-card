@@ -1,0 +1,11 @@
+node_modules
+dist
+.DS_Store
+*.local
+.env
+.env.*
+*.MOV
+*.mov
+IMG_*.MOV
+499A24B7*.PNG
+Shalimar branding 2/
